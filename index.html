@@ -1762,6 +1762,16 @@
                 <div id="tensionsCalendarPlanning"></div>
             </div>
 
+            <div class="card" id="closedDaysInfoCard" style="display: none;">
+                <h2 class="card-title">Fermetures exceptionnelles à venir</h2>
+                <div id="closedDaysInfoPlanning"></div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Vacances en cours et à venir</h2>
+                <div id="vacancesInfoPlanning"></div>
+            </div>
+
         </div>
 
         <!-- VUE DEMANDE -->
@@ -1776,6 +1786,8 @@
                             <option value="absence_group">Demande d'absence</option>
                             <option value="echange">Échange horaires</option>
                             <option value="recuperation" id="optionRecuperation" class="hidden">Récupération d'heures</option>
+                            <option value="heures_sup_declaration">Déclarer des heures supplémentaires</option>
+                            <option value="heures_sup_utilisation" id="optionHeuresSupUtil" class="hidden">Utiliser mes heures supplémentaires</option>
                         </select>
                     </div>
                     <div class="form-group hidden" id="raisonGroup">
@@ -1844,6 +1856,57 @@
                         <div id="recupSummary" class="hours-summary hidden" style="margin-top: 1rem;"></div>
                     </div>
 
+                    <!-- Déclaration heures supplémentaires -->
+                    <div id="heuresSupDeclareFields" class="hidden">
+                        <div class="info-box" style="background: var(--sage-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <p style="margin: 0; color: var(--teal-dark); font-size: 0.9rem;">
+                                Déclarez les heures supplémentaires que vous avez travaillées. Laure validera votre déclaration et les heures seront créditées à votre solde.
+                            </p>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-input" id="heuresSupDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Nombre d'heures</label>
+                                <input type="number" class="form-input" id="heuresSupNb" step="0.5" min="0.5" max="12" placeholder="Ex : 2">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Motif</label>
+                            <textarea class="form-textarea" id="heuresSupMotif" rows="2" placeholder="Ex : Inventaire, formation, aide exceptionnelle..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="submitHeuresSupDeclaration()">Soumettre la déclaration</button>
+                    </div>
+
+                    <!-- Utilisation heures supplémentaires -->
+                    <div id="heuresSupUtilFields" class="hidden">
+                        <div class="info-box" style="background: var(--sage-light); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                            <p style="margin: 0; color: var(--teal-dark);">
+                                <strong>Solde disponible :</strong> <span id="heuresSupSolde" style="font-size: 1.1rem;">0h</span>
+                            </p>
+                            <p style="margin: 0.5rem 0 0; color: var(--gray); font-size: 0.9rem;">
+                                Indiquez combien d'heures vous souhaitez utiliser et décrivez l'aménagement (ex : arrivée à 11h au lieu de 9h).
+                            </p>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Date</label>
+                                <input type="date" class="form-input" id="heuresSupUtilDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Heures à utiliser</label>
+                                <input type="number" class="form-input" id="heuresSupUtilNb" step="0.5" min="0.5" placeholder="Ex : 2">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Aménagement (ex : arrivée à 11h au lieu de 9h)</label>
+                            <textarea class="form-textarea" id="heuresSupUtilNote" rows="2" placeholder="Décrivez votre aménagement..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="submitHeuresSupUtilisation()">Soumettre la demande</button>
+                    </div>
+
                     <button type="button" class="btn btn-primary" id="analyserImpact">Analyser l'impact</button>
                 </form>
             </div>
@@ -1888,6 +1951,11 @@
             <div class="card">
                 <h2 class="card-title">Demandes en cours</h2>
                 <div id="mesDemandes"></div>
+            </div>
+
+            <div class="card" id="mesSoldeHeuresSup">
+                <h2 class="card-title">Mes heures supplémentaires</h2>
+                <div id="mesSoldeHeuresSupContent"></div>
             </div>
 
             <div class="card">
@@ -1991,6 +2059,7 @@
                     <button class="solde-tab active" data-solde-tab="vacances" onclick="switchSoldeTab('vacances')">Solde vacances</button>
                     <button class="solde-tab" data-solde-tab="heures" onclick="switchSoldeTab('heures')">Heures dues</button>
                     <button class="solde-tab" data-solde-tab="mensuelles" onclick="switchSoldeTab('mensuelles')">Heures mensuelles par employé</button>
+                    <button class="solde-tab" data-solde-tab="heures-sup" onclick="switchSoldeTab('heures-sup')">Heures supp.</button>
                 </div>
                 <div id="soldeTabVacances">
                     <div style="text-align: right; margin-bottom: 0.75rem;">
@@ -2000,6 +2069,9 @@
                 </div>
                 <div id="soldeTabHeures" style="display:none;">
                     <div id="managerHoursBalance"></div>
+                </div>
+                <div id="soldeTabHeuresSup" style="display:none;">
+                    <div id="heuresSupManager"></div>
                 </div>
                 <div id="soldeTabMensuelles" style="display:none;">
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center;">
@@ -2081,6 +2153,30 @@
                 <div id="scheduleConfirmation" class="hidden">
                     <!-- Success message -->
                 </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Fermetures exceptionnelles</h2>
+                <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Marquez les jours où la pharmacie est fermée (pont, fermeture exceptionnelle).
+                    Les heures planifiées de chaque employée ce jour-là sont automatiquement créditées sur son solde (récupérables plus tard).
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 0.75rem; align-items: end; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-input" id="closedDayDebut">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-input" id="closedDayFin">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Raison (optionnel)</label>
+                        <input type="text" class="form-input" id="closedDayRaison" placeholder="Ex : Pont du 1er mai">
+                    </div>
+                    <button class="btn btn-primary" onclick="handleAddClosedDay()">Ajouter</button>
+                </div>
+                <div id="closedDaysList"></div>
             </div>
 
             <div class="card">
@@ -2281,6 +2377,8 @@
         let demandesCache = [];
         let vacancesSoldeCache = {};
         let contractsCache = {};
+        let closedDaysCache = [];
+        let heuresSupCache = {};
 
         // ========== DONNEES DU PLANNING ==========
         const STAFF = {
@@ -2441,6 +2539,14 @@
             // Get date details for the exchange
             const jour = getJourFromDate(dateEchange);
             if (!jour) return { allowed: false, message: 'Date invalide' };
+
+            // Block exchange if pharmacy is closed that day
+            const dateStrEchange = typeof dateEchange === 'string' ? dateEchange : formatLocalDate(dateEchange);
+            if (isClosedDay(dateStrEchange)) {
+                const info = getClosedDayInfo(dateStrEchange);
+                const raison = info && info.raison ? ` (${info.raison})` : '';
+                return { allowed: false, message: `❌ IMPOSSIBLE : la pharmacie est fermée ce jour-là${raison}.` };
+            }
 
             const semaine = getSemaineType(dateEchange);
 
@@ -2979,7 +3085,9 @@
                 'conge': 'Congés',
                 'echange': 'Échange horaires',
                 'vacances': 'Vacances',
-                'recuperation': 'Récupération heures dues'
+                'recuperation': 'Récupération heures dues',
+                'heures_sup_declaration': 'Déclaration heures supplémentaires',
+                'heures_sup_utilisation': 'Utilisation heures supplémentaires'
             };
             return labels[type] || type;
         }
@@ -3033,7 +3141,7 @@
             const balances = {};
 
             Object.keys(STAFF).filter(name => name !== 'Laure').forEach(name => {
-                balances[name] = { dues: 0, recuperees: 0 };
+                balances[name] = { dues: 0, recuperees: 0, creditFermeture: 0 };
             });
 
             demandes.forEach(d => {
@@ -3053,6 +3161,13 @@
                         }
                     }
                 }
+            });
+
+            // Crédit fermetures exceptionnelles (la pharmacie doit ces heures à l'employée)
+            Object.keys(balances).forEach(name => {
+                const credit = getEmployeeCreditFromClosedDays(name).hours;
+                balances[name].creditFermeture = credit;
+                balances[name].recuperees += credit;
             });
 
             return balances;
@@ -3212,6 +3327,10 @@
             periodeGroup.classList.remove('hidden');
             absenceFields.classList.remove('hidden');
             recuperationFields.classList.add('hidden');
+            document.getElementById('heuresSupDeclareFields').classList.add('hidden');
+            document.getElementById('heuresSupUtilFields').classList.add('hidden');
+            document.getElementById('analyserImpact').classList.remove('hidden');
+            document.getElementById('impactAnalysis').classList.add('hidden');
 
             if (type === 'recuperation') {
                 absenceFields.classList.add('hidden');
@@ -3223,6 +3342,15 @@
             } else if (type === 'echange') {
                 echangeGroup.classList.remove('hidden');
                 populateEchangeSelect();
+            } else if (type === 'heures_sup_declaration') {
+                absenceFields.classList.add('hidden');
+                document.getElementById('analyserImpact').classList.add('hidden');
+                document.getElementById('heuresSupDeclareFields').classList.remove('hidden');
+            } else if (type === 'heures_sup_utilisation') {
+                absenceFields.classList.add('hidden');
+                document.getElementById('analyserImpact').classList.add('hidden');
+                document.getElementById('heuresSupUtilFields').classList.remove('hidden');
+                updateHeuresSupUtilSolde();
             } else {
                 absenceFields.classList.add('hidden');
             }
@@ -3311,6 +3439,93 @@
                 option.classList.add('hidden');
                 option.disabled = true;
             }
+        }
+
+        function updateHeuresSupUtilOptionVisibility() {
+            const employee = document.getElementById('currentUser').value;
+            const option = document.getElementById('optionHeuresSupUtil');
+            if (!option) return;
+            const credit = (getHeuresSup()[employee] || 0);
+            if (credit > 0) {
+                option.classList.remove('hidden');
+                option.disabled = false;
+            } else {
+                option.classList.add('hidden');
+                option.disabled = true;
+                if (document.getElementById('demandeType').value === 'heures_sup_utilisation') {
+                    document.getElementById('demandeType').value = '';
+                    handleTypeChange();
+                }
+            }
+        }
+
+        function updateHeuresSupUtilSolde() {
+            const employee = document.getElementById('currentUser').value;
+            const credit = getHeuresSup()[employee] || 0;
+            const el = document.getElementById('heuresSupSolde');
+            if (el) el.textContent = formatHeures(credit);
+            const nbInput = document.getElementById('heuresSupUtilNb');
+            if (nbInput) nbInput.max = credit;
+        }
+
+        async function submitHeuresSupDeclaration() {
+            const employee = document.getElementById('currentUser').value;
+            const date = document.getElementById('heuresSupDate').value;
+            const nb = parseFloat(document.getElementById('heuresSupNb').value);
+            const motif = document.getElementById('heuresSupMotif').value.trim();
+
+            if (!date) { alert('Veuillez indiquer une date.'); return; }
+            if (!nb || nb <= 0) { alert('Veuillez indiquer le nombre d\'heures.'); return; }
+
+            await addDemande({
+                type: 'heures_sup_declaration',
+                employee: employee,
+                dateDebut: date,
+                dateFin: date,
+                date: date,
+                heures: nb,
+                motif: motif
+            });
+
+            document.getElementById('heuresSupDate').value = '';
+            document.getElementById('heuresSupNb').value = '';
+            document.getElementById('heuresSupMotif').value = '';
+            document.getElementById('demandeType').value = '';
+            handleTypeChange();
+            alert('Déclaration soumise ! Laure recevra une notification pour valider.');
+        }
+
+        async function submitHeuresSupUtilisation() {
+            const employee = document.getElementById('currentUser').value;
+            const date = document.getElementById('heuresSupUtilDate').value;
+            const nb = parseFloat(document.getElementById('heuresSupUtilNb').value);
+            const note = document.getElementById('heuresSupUtilNote').value.trim();
+            const credit = getHeuresSup()[employee] || 0;
+
+            if (!date) { alert('Veuillez indiquer une date.'); return; }
+            if (!nb || nb <= 0) { alert('Veuillez indiquer le nombre d\'heures à utiliser.'); return; }
+            if (nb > credit) {
+                alert(`Solde insuffisant. Vous avez ${formatHeures(credit)} disponibles.`);
+                return;
+            }
+
+            await addDemande({
+                type: 'heures_sup_utilisation',
+                employee: employee,
+                dateDebut: date,
+                dateFin: date,
+                date: date,
+                heures: nb,
+                note: note,
+                heuresAvant: credit
+            });
+
+            document.getElementById('heuresSupUtilDate').value = '';
+            document.getElementById('heuresSupUtilNb').value = '';
+            document.getElementById('heuresSupUtilNote').value = '';
+            document.getElementById('demandeType').value = '';
+            handleTypeChange();
+            alert('Demande soumise ! Laure doit valider.');
         }
 
         async function populateRecuperationSlots() {
@@ -3415,6 +3630,9 @@
 
                 // Skip days where employee is on vacation
                 if (vacationDates.has(dateStr)) continue;
+
+                // Skip days where pharmacy is closed (pont, fermeture exceptionnelle)
+                if (isClosedDay(dateStr)) continue;
 
                 const planning = employeePlanning?.[semaine]?.[jour];
 
@@ -4231,6 +4449,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         function renderMesDemandes() {
             renderEchanges();
             renderMonthlyHoursEmployee();
+            renderMesSoldeHeuresSup();
 
             const container = document.getElementById('mesDemandes');
             const employee = document.getElementById('currentUser').value;
@@ -4265,6 +4484,20 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         <ul style="margin-left: 1rem;">
                             ${d.recoverySlots.map(s => `<li>${formatDate(s.date)} ${s.periode} (${formatHeures(s.heures)})</li>`).join('')}
                         </ul>
+                    `;
+                } else if (d.type === 'heures_sup_declaration') {
+                    detailsHtml = `
+                        <p><strong>Type :</strong> ${getTypeLabel(d.type)}</p>
+                        <p><strong>Date :</strong> ${formatDate(d.dateDebut || d.date)}</p>
+                        <p><strong>Heures déclarées :</strong> ${formatHeures(d.heures)}</p>
+                        ${d.motif ? `<p><strong>Motif :</strong> ${sanitize(d.motif)}</p>` : ''}
+                    `;
+                } else if (d.type === 'heures_sup_utilisation') {
+                    detailsHtml = `
+                        <p><strong>Type :</strong> ${getTypeLabel(d.type)}</p>
+                        <p><strong>Date :</strong> ${formatDate(d.dateDebut || d.date)}</p>
+                        <p><strong>Heures utilisées :</strong> ${formatHeures(d.heures)}</p>
+                        ${d.note ? `<p><strong>Aménagement :</strong> ${sanitize(d.note)}</p>` : ''}
                     `;
                 } else {
                     // Regular demande
@@ -4313,10 +4546,12 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         function renderManager() {
             renderStatsDashboard();
             renderDemandesAttente();
+            renderClosedDaysManager();
             renderContractsManager();
             renderManagerVacancesBalance();
             renderMonthlyHoursManager();
             renderManagerHoursBalance();
+            renderHeuresSupManager();
             renderTensionsCalendar();
             renderHistoriqueComplet();
             populateManagerExchangeSelects();
@@ -4347,6 +4582,21 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         <ul style="margin-left: 1rem; font-size: 0.85rem;">
                             ${d.recoverySlots.map(s => `<li>${formatDateShort(s.date)} ${s.periode} (${formatHeures(s.heures)})</li>`).join('')}
                         </ul>
+                    `;
+                } else if (d.type === 'heures_sup_declaration') {
+                    detailsHtml = `
+                        <p><strong>Type :</strong> ${getTypeLabel(d.type)}</p>
+                        <p><strong>Date :</strong> ${formatDate(d.dateDebut || d.date)}</p>
+                        <p><strong>Heures déclarées :</strong> ${formatHeures(d.heures)}</p>
+                        ${d.motif ? `<p><strong>Motif :</strong> ${sanitize(d.motif)}</p>` : ''}
+                    `;
+                } else if (d.type === 'heures_sup_utilisation') {
+                    detailsHtml = `
+                        <p><strong>Type :</strong> ${getTypeLabel(d.type)}</p>
+                        <p><strong>Date :</strong> ${formatDate(d.dateDebut || d.date)}</p>
+                        <p><strong>Heures à utiliser :</strong> ${formatHeures(d.heures)}</p>
+                        <p><strong>Crédit avant demande :</strong> ${formatHeures(d.heuresAvant || 0)}</p>
+                        ${d.note ? `<p><strong>Aménagement :</strong> ${sanitize(d.note)}</p>` : ''}
                     `;
                 } else {
                     // Regular absence request
@@ -4384,8 +4634,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                             <button class="btn btn-danger" onclick="showRefuseForm(${d.id})">Refuser</button>
                         </div>
                         <div class="manager-comment hidden" id="modify-form-${d.id}">
-                            ${d.type === 'recuperation' ? `
-                                <p style="font-size: 0.85rem; color: var(--gray); margin-bottom: 0.5rem;">Modification non disponible pour les récupérations.</p>
+                            ${(d.type === 'recuperation' || d.type === 'heures_sup_declaration' || d.type === 'heures_sup_utilisation') ? `
+                                <p style="font-size: 0.85rem; color: var(--gray); margin-bottom: 0.5rem;">Modification non disponible.</p>
                             ` : (d.type === 'vacances' || d.type === 'conge') ? `
                                 <div style="display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap;">
                                     <div>
@@ -4423,6 +4673,16 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const demandes = getDemandes();
             const d = demandes.find(x => x.id === id);
             await updateDemandeStatus(id, 'approuvee');
+            // Crédit heures supplémentaires
+            if (d && d.type === 'heures_sup_declaration') {
+                const solde = getHeuresSup();
+                solde[d.employee] = (solde[d.employee] || 0) + (d.heures || 0);
+                await saveHeuresSup(solde);
+            } else if (d && d.type === 'heures_sup_utilisation') {
+                const solde = getHeuresSup();
+                solde[d.employee] = Math.max(0, (solde[d.employee] || 0) - (d.heures || 0));
+                await saveHeuresSup(solde);
+            }
             // Deduct vacation days if it's a vacances request — update both systems
             if (d && d.type === 'vacances') {
                 const joursToDeduct = d.joursOuvrables || 0;
@@ -4609,11 +4869,15 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             dates.forEach(checkDate => {
                 const jour = getJourFromDate(checkDate);
                 const dayNum = checkDate.getDate();
+                const dateStr = formatLocalDate(checkDate);
                 if (!jour) {
                     html += `<div class="tension-day" style="background: var(--gray-light);">${dayNum}<br><small>Ferme</small></div>`;
+                } else if (isClosedDay(dateStr)) {
+                    const info = getClosedDayInfo(dateStr);
+                    const tooltip = info && info.raison ? ` title="${info.raison}"` : '';
+                    html += `<div class="tension-day" style="background: #4B5563; color: white;"${tooltip}>${dayNum}<br><small>FERME</small></div>`;
                 } else {
                     const semaine = getSemaineType(checkDate);
-                    const dateStr = formatLocalDate(checkDate);
                     const absents = getAbsentsOnDate(dateStr);
                     const amEffectif = getEffectifJour(jour, semaine, 'am', absents);
                     const pmEffectif = jour !== 'samedi' ? getEffectifPondere(jour, semaine, absents) : amEffectif;
@@ -4666,11 +4930,15 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 }
                 const jour = getJourFromDate(checkDate);
                 const dayNum = checkDate.getDate();
+                const dateStr = formatLocalDate(checkDate);
                 if (!jour) {
                     html += `<div class="tension-day" style="background: var(--gray-light);">${dayNum}<br><small>Ferme</small></div>`;
+                } else if (isClosedDay(dateStr)) {
+                    const info = getClosedDayInfo(dateStr);
+                    const tooltip = info && info.raison ? ` title="${info.raison}"` : '';
+                    html += `<div class="tension-day" style="background: #4B5563; color: white;"${tooltip}>${dayNum}<br><small>FERME</small></div>`;
                 } else {
                     const semaine = getSemaineType(checkDate);
-                    const dateStr = formatLocalDate(checkDate);
                     const absents = getAbsentsOnDate(dateStr);
                     const amEffectif = getEffectifJour(jour, semaine, 'am', absents);
                     const pmEffectif = jour !== 'samedi' ? getEffectifPondere(jour, semaine, absents) : amEffectif;
@@ -4712,9 +4980,79 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             planningContainer.innerHTML = buildTensionsGridHTML(dates);
         }
 
+        function renderVacancesInfoPlanning() {
+            const container = document.getElementById('vacancesInfoPlanning');
+            if (!container) return;
+
+            const today = getNowFrance();
+            const todayStr = formatLocalDate(today);
+            const windowEnd = new Date(today);
+            windowEnd.setDate(today.getDate() - today.getDay() + 1 + 27); // Sunday of week+3
+            const windowEndStr = formatLocalDate(windowEnd);
+
+            const vacances = getDemandes()
+                .filter(d => d.type === 'vacances' && d.status === 'approuvee' && d.dateDebut && d.dateFin)
+                .filter(d => d.dateFin >= todayStr && d.dateDebut <= windowEndStr)
+                .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
+
+            if (vacances.length === 0) {
+                container.innerHTML = '<p style="color: var(--gray); font-size: 0.9rem;">Aucune vacance prévue sur les 4 prochaines semaines.</p>';
+                return;
+            }
+
+            let html = '<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">';
+            html += '<thead><tr style="background: var(--gray-light);"><th style="padding: 0.5rem; text-align: left;">Employé</th><th style="padding: 0.5rem; text-align: left;">Du</th><th style="padding: 0.5rem; text-align: left;">Au</th><th style="padding: 0.5rem; text-align: left;">Jours</th><th style="padding: 0.5rem; text-align: left;">Statut</th></tr></thead><tbody>';
+            vacances.forEach(d => {
+                const enCours = d.dateDebut <= todayStr && d.dateFin >= todayStr;
+                const badge = enCours
+                    ? '<span style="background: var(--sage); color: white; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">EN COURS</span>'
+                    : '<span style="color: var(--gray); font-size: 0.8rem;">À venir</span>';
+                html += `<tr style="border-bottom: 1px solid #E5E7EB;">`;
+                html += `<td style="padding: 0.5rem; font-weight: 600;">${d.employee}</td>`;
+                html += `<td style="padding: 0.5rem;">${formatDateShort(d.dateDebut)}</td>`;
+                html += `<td style="padding: 0.5rem;">${formatDateShort(d.dateFin)}</td>`;
+                html += `<td style="padding: 0.5rem;">${d.joursOuvrables || '-'}</td>`;
+                html += `<td style="padding: 0.5rem;">${badge}</td>`;
+                html += `</tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
         function renderTensionsCalendar() {
             renderTensionsCalendarManager();
             renderTensionsPlanningTab();
+            renderVacancesInfoPlanning();
+            renderClosedDaysInfoPlanning();
+        }
+
+        function renderClosedDaysInfoPlanning() {
+            const card = document.getElementById('closedDaysInfoCard');
+            const container = document.getElementById('closedDaysInfoPlanning');
+            if (!container || !card) return;
+
+            const today = formatLocalDate(getNowFrance());
+            const upcoming = closedDaysCache
+                .filter(c => c.dateFin >= today)
+                .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
+
+            if (upcoming.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = '';
+
+            let html = '';
+            upcoming.forEach(c => {
+                const range = c.dateDebut === c.dateFin
+                    ? formatDateShort(c.dateDebut)
+                    : `${formatDateShort(c.dateDebut)} → ${formatDateShort(c.dateFin)}`;
+                const raison = c.raison ? ` — ${c.raison}` : '';
+                html += `<div style="padding: 0.5rem 0.75rem; background: #F3F4F6; border-left: 3px solid #4B5563; border-radius: 4px; margin-bottom: 0.4rem; font-size: 0.9rem;">
+                    <strong>FERMÉ</strong> ${range}${raison}
+                </div>`;
+            });
+            container.innerHTML = html;
         }
 
         function renderHistoriqueComplet() {
@@ -4805,6 +5143,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const data = {
                 demandes: getDemandes(),
                 vacancesSolde: getVacancesSolde(),
+                closed_days: closedDaysCache,
                 exportDate: getNowFrance().toISOString()
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -4831,6 +5170,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     }
                     if (data.vacancesSolde) {
                         await saveVacancesSolde(data.vacancesSolde);
+                    }
+                    if (data.closed_days && Array.isArray(data.closed_days)) {
+                        closedDaysCache = data.closed_days;
+                        await saveClosedDays();
                     }
                     alert('Import reussi !');
                     renderManager();
@@ -4891,6 +5234,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     vacancesSolde: getVacancesSolde(),
                     contracts: getContracts(),
                     staff_schedule: STAFF,
+                    closed_days: closedDaysCache,
                     exportDate: getNowFrance().toISOString(),
                     backupType: 'weekly_auto'
                 };
@@ -5078,6 +5422,136 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         let currentVacancesImpact = null;
         let editingVacancesId = null; // ID de la demande en cours de modification
 
+        // ========== FERMETURES EXCEPTIONNELLES ==========
+        async function loadClosedDays() {
+            try {
+                const doc = await db.collection('config').doc('closed_days').get();
+                closedDaysCache = doc.exists && Array.isArray(doc.data().list) ? doc.data().list : [];
+            } catch (e) {
+                console.error('Erreur chargement closed_days:', e);
+                closedDaysCache = [];
+            }
+        }
+
+        async function saveClosedDays() {
+            try {
+                await db.collection('config').doc('closed_days').set({ list: closedDaysCache });
+            } catch (e) {
+                console.error('Erreur save closed_days:', e);
+                alert('Erreur lors de la sauvegarde de la fermeture.');
+            }
+        }
+
+        function isClosedDay(dateStr) {
+            return closedDaysCache.some(c => dateStr >= c.dateDebut && dateStr <= c.dateFin);
+        }
+
+        function getClosedDayInfo(dateStr) {
+            return closedDaysCache.find(c => dateStr >= c.dateDebut && dateStr <= c.dateFin) || null;
+        }
+
+        function getClosedDayDates(closure) {
+            return getDatesBetween(closure.dateDebut, closure.dateFin);
+        }
+
+        async function addClosedDay(dateDebut, dateFin, raison) {
+            if (!dateDebut || !dateFin) {
+                alert('Date début et date fin requises.');
+                return false;
+            }
+            if (dateFin < dateDebut) {
+                alert('La date de fin doit être après la date de début.');
+                return false;
+            }
+            const closure = {
+                id: Date.now(),
+                dateDebut,
+                dateFin,
+                raison: raison || '',
+                dateCreation: getNowFrance().toISOString()
+            };
+            closedDaysCache.push(closure);
+            await saveClosedDays();
+            return true;
+        }
+
+        async function deleteClosedDay(id) {
+            if (!confirm('Supprimer cette fermeture ? Le crédit d\'heures associé sera retiré du solde des employées.')) return;
+            closedDaysCache = closedDaysCache.filter(c => c.id !== id);
+            await saveClosedDays();
+        }
+
+        async function handleAddClosedDay() {
+            const debut = document.getElementById('closedDayDebut').value;
+            const fin = document.getElementById('closedDayFin').value || debut;
+            const raison = document.getElementById('closedDayRaison').value.trim();
+            const ok = await addClosedDay(debut, fin, raison);
+            if (ok) {
+                document.getElementById('closedDayDebut').value = '';
+                document.getElementById('closedDayFin').value = '';
+                document.getElementById('closedDayRaison').value = '';
+            }
+        }
+
+        function renderClosedDaysManager() {
+            const container = document.getElementById('closedDaysList');
+            if (!container) return;
+            const today = formatLocalDate(getNowFrance());
+            const sorted = [...closedDaysCache].sort((a, b) => a.dateDebut.localeCompare(b.dateDebut));
+            const upcoming = sorted.filter(c => c.dateFin >= today);
+            const past = sorted.filter(c => c.dateFin < today).slice(-5).reverse();
+
+            const renderRow = (c, isPast) => {
+                const range = c.dateDebut === c.dateFin
+                    ? formatDateShort(c.dateDebut)
+                    : `${formatDateShort(c.dateDebut)} → ${formatDateShort(c.dateFin)}`;
+                const days = getClosedDayDates(c).length;
+                const raison = c.raison ? `<span style="color: var(--gray); margin-left: 0.5rem;">— ${c.raison}</span>` : '';
+                const opacity = isPast ? '0.55' : '1';
+                return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; border: 1px solid var(--gray-light); border-radius: 6px; margin-bottom: 0.4rem; opacity: ${opacity};">
+                    <div>
+                        <strong>${range}</strong> <span style="color: var(--gray); font-size: 0.85rem;">(${days} jour${days > 1 ? 's' : ''})</span>${raison}
+                    </div>
+                    <button class="btn" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; background: #ccc; color: #333;" onclick="deleteClosedDay(${c.id})">Supprimer</button>
+                </div>`;
+            };
+
+            let html = '';
+            if (upcoming.length === 0 && past.length === 0) {
+                html = '<p style="color: var(--gray);">Aucune fermeture enregistrée.</p>';
+            } else {
+                if (upcoming.length > 0) {
+                    html += '<h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">À venir / en cours</h4>';
+                    upcoming.forEach(c => { html += renderRow(c, false); });
+                }
+                if (past.length > 0) {
+                    html += '<h4 style="margin: 1rem 0 0.5rem 0; font-size: 0.9rem; color: var(--gray);">Passées (5 dernières)</h4>';
+                    past.forEach(c => { html += renderRow(c, true); });
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function getEmployeeCreditFromClosedDays(employee) {
+            if (!STAFF[employee] || employee === 'Laure') return { hours: 0, details: [] };
+            let total = 0;
+            const details = [];
+            closedDaysCache.forEach(c => {
+                getClosedDayDates(c).forEach(dateStr => {
+                    const jour = getJourFromDate(dateStr);
+                    if (!jour) return; // dimanche
+                    if (isJourFerie(dateStr)) return; // jour férié déjà chômé payé
+                    const semaine = getSemaineType(dateStr);
+                    const dayHours = calculerHeures(employee, jour, semaine, 'journee');
+                    if (dayHours > 0) {
+                        total += dayHours;
+                        details.push({ date: dateStr, hours: dayHours, raison: c.raison });
+                    }
+                });
+            });
+            return { hours: total, details };
+        }
+
         function getVacancesSolde() {
             return vacancesSoldeCache;
         }
@@ -5087,6 +5561,18 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 await db.collection('config').doc('vacances_solde').set(solde);
             } catch (e) {
                 console.error('Erreur save vacances solde:', e);
+            }
+        }
+
+        function getHeuresSup() {
+            return heuresSupCache;
+        }
+
+        async function saveHeuresSup(data) {
+            try {
+                await db.collection('config').doc('heures_sup').set(data);
+            } catch (e) {
+                console.error('Erreur save heures_sup:', e);
             }
         }
 
@@ -5127,6 +5613,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const day = d.getDay();
             if (day === 0) return false; // dimanche
             if (isJourFerie(dateStr)) return false;
+            if (isClosedDay(dateStr)) return false; // pharmacie fermée (pont, exceptionnel)
             return true;
         }
 
@@ -5176,6 +5663,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             document.getElementById('soldeTabVacances').style.display = tab === 'vacances' ? 'block' : 'none';
             document.getElementById('soldeTabHeures').style.display = tab === 'heures' ? 'block' : 'none';
             document.getElementById('soldeTabMensuelles').style.display = tab === 'mensuelles' ? 'block' : 'none';
+            document.getElementById('soldeTabHeuresSup').style.display = tab === 'heures-sup' ? 'block' : 'none';
         }
 
         function renderVacancesBalance() {
@@ -5569,14 +6057,21 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 const isToday = dateStr === today;
                 const isFerie = isJourFerie(dateStr);
+                const isClosed = isClosedDay(dateStr);
                 const classes = ['calendar-day'];
                 if (isToday) classes.push('today');
                 if (isFerie) classes.push('ferie');
 
-                html += `<div class="${classes.join(' ')}">`;
+                const closedStyle = isClosed ? ' style="background: #E5E7EB; opacity: 0.7;"' : '';
+                html += `<div class="${classes.join(' ')}"${closedStyle}>`;
                 html += `<div class="calendar-day-num">${day}</div>`;
                 if (isFerie) {
                     html += `<div class="calendar-ferie-label">${JOURS_FERIES[dateStr]}</div>`;
+                }
+                if (isClosed && !isFerie) {
+                    const info = getClosedDayInfo(dateStr);
+                    const label = info && info.raison ? info.raison : 'Ferm\u00e9';
+                    html += `<div class="calendar-ferie-label" style="background: #4B5563; color: white;">${label}</div>`;
                 }
 
                 // Show vacances events
@@ -5991,6 +6486,62 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         }
 
         // Manager: hours balance view
+        function renderHeuresSupManager() {
+            const container = document.getElementById('heuresSupManager');
+            if (!container) return;
+            const solde = getHeuresSup();
+            const employees = Object.keys(STAFF).filter(n => n !== 'Laure');
+
+            let html = '<table class="solde-table"><thead><tr><th>Employée</th><th>Crédit disponible</th></tr></thead><tbody>';
+            employees.forEach(name => {
+                const credit = solde[name] || 0;
+                const color = credit > 0 ? 'var(--green)' : 'var(--gray)';
+                html += `<tr>
+                    <td class="solde-name">${name}</td>
+                    <td style="font-weight: 600; color: ${color};">${credit > 0 ? '+' + formatHeures(credit) : '–'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function renderMesSoldeHeuresSup() {
+            const container = document.getElementById('mesSoldeHeuresSupContent');
+            if (!container) return;
+            const employee = document.getElementById('currentUser').value;
+            const credit = getHeuresSup()[employee] || 0;
+
+            const color = credit > 0 ? 'var(--green)' : 'var(--gray)';
+            const msg = credit > 0
+                ? `Vous avez <strong style="color:${color}; font-size:1.2rem;">${formatHeures(credit)}</strong> d'heures supplémentaires disponibles.`
+                : 'Aucune heure supplémentaire créditée pour le moment.';
+
+            // Recent heures_sup demandes
+            const demandes = getDemandes()
+                .filter(d => d.employee === employee && (d.type === 'heures_sup_declaration' || d.type === 'heures_sup_utilisation'))
+                .sort((a, b) => b.id - a.id)
+                .slice(0, 5);
+
+            let histHtml = '';
+            if (demandes.length > 0) {
+                histHtml = '<div style="margin-top:1rem;"><strong style="font-size:0.85rem; color:var(--gray);">Historique récent</strong><ul style="margin-top:0.5rem; padding-left:1.2rem; font-size:0.875rem;">';
+                demandes.forEach(d => {
+                    const sign = d.type === 'heures_sup_declaration' ? '+' : '–';
+                    const signColor = d.type === 'heures_sup_declaration' ? 'var(--green)' : 'var(--orange)';
+                    const statusMap = { attente: 'en attente', approuvee: 'approuvée', refusee: 'refusée' };
+                    histHtml += `<li style="margin-bottom:0.3rem;">
+                        <span style="color:${signColor}; font-weight:600;">${sign}${formatHeures(d.heures)}</span>
+                        &mdash; ${formatDate(d.date || d.dateDebut)}
+                        ${d.motif || d.note ? `<em style="color:var(--gray);">(${sanitize(d.motif || d.note)})</em>` : ''}
+                        <span style="font-size:0.78rem; color:var(--gray); margin-left:0.4rem;">[${statusMap[d.status] || d.status}]</span>
+                    </li>`;
+                });
+                histHtml += '</ul></div>';
+            }
+
+            container.innerHTML = `<p style="margin:0;">${msg}</p>${histHtml}`;
+        }
+
         function renderManagerHoursBalance() {
             const container = document.getElementById('managerHoursBalance');
             const demandes = getDemandes().filter(d => d.status === 'approuvee');
@@ -6003,6 +6554,14 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         employeeHours[d.employee] = [];
                     }
                     employeeHours[d.employee].push(d);
+                }
+            });
+
+            // Inclure les employées avec crédit fermeture (sans absence)
+            Object.keys(STAFF).filter(n => n !== 'Laure').forEach(name => {
+                const credit = getEmployeeCreditFromClosedDays(name).hours;
+                if (credit > 0 && !employeeHours[name]) {
+                    employeeHours[name] = [];
                 }
             });
 
@@ -6043,9 +6602,27 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     totalRecuperees += d.heuresRecuperees || 0;
                 });
 
+                // Crédit fermetures exceptionnelles (la pharmacie doit ces heures à l'employée)
+                const closureCredit = getEmployeeCreditFromClosedDays(name);
+                totalRecuperees += closureCredit.hours;
+
                 const remaining = totalDues - totalRecuperees;
-                const isBalanced = remaining <= 0;
-                const soldeClass = isBalanced ? 'hours-neutral' : 'hours-negative';
+                const isBalanced = Math.abs(remaining) < 0.01;
+                const isCredited = remaining < 0; // pharmacie doit à l'employée
+                let soldeClass, soldeLabel, soldeDisplay;
+                if (isBalanced) {
+                    soldeClass = 'hours-neutral';
+                    soldeLabel = 'équilibré';
+                    soldeDisplay = '0h';
+                } else if (isCredited) {
+                    soldeClass = 'balance-positive';
+                    soldeLabel = 'crédit (à récupérer)';
+                    soldeDisplay = '+' + formatHeures(Math.abs(remaining));
+                } else {
+                    soldeClass = 'hours-negative';
+                    soldeLabel = 'à récupérer';
+                    soldeDisplay = '-' + formatHeures(remaining);
+                }
                 const pendingSlots = recoverySlots.filter(s => !s.done);
                 const doneSlots = recoverySlots.filter(s => s.done);
 
@@ -6059,12 +6636,26 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         <!-- Main info: Big number -->
                         <div class="hours-main-value">
                             <div class="hours-main-number ${soldeClass}">
-                                ${isBalanced ? '0h' : '-' + formatHeures(remaining)}
+                                ${soldeDisplay}
                             </div>
                             <div class="hours-main-label">
-                                ${isBalanced ? 'équilibré' : 'à récupérer'}
+                                ${soldeLabel}
                             </div>
                         </div>
+
+                        <!-- Crédit fermetures -->
+                        ${closureCredit.hours > 0 ? `
+                            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #E5E7EB;">
+                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--teal-dark); margin-bottom: 0.5rem;">
+                                    🏥 Crédit fermetures pharmacie : +${formatHeures(closureCredit.hours)}
+                                </div>
+                                ${closureCredit.details.map(d => `
+                                    <div style="font-size: 0.75rem; color: var(--gray); padding: 0.25rem 0;">
+                                        ${formatDateShort(d.date)} (+${formatHeures(d.hours)})${d.raison ? ` — ${d.raison}` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
 
                         <!-- Recovery slots -->
                         ${doneSlots.length > 0 ? `
@@ -6810,6 +7401,42 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 }
             });
 
+            // Real-time listener for closed_days (fermetures exceptionnelles)
+            db.collection('config').doc('closed_days').onSnapshot((doc) => {
+                closedDaysCache = doc.exists && Array.isArray(doc.data().list) ? doc.data().list : [];
+                if (isStaffAuthenticated) {
+                    const currentView = document.querySelector('.view.active');
+                    if (!currentView) return;
+                    if (currentView.id === 'view-planning') {
+                        renderTensionsCalendar();
+                    } else if (currentView.id === 'view-manager' && isManagerAuthenticated) {
+                        renderClosedDaysManager();
+                        renderTensionsCalendar();
+                        renderManagerHoursBalance();
+                    } else if (currentView.id === 'view-vacances') {
+                        if (typeof renderVacancesCalendar === 'function') renderVacancesCalendar();
+                    }
+                }
+            });
+
+            // Real-time listener for heures supplémentaires
+            db.collection('config').doc('heures_sup').onSnapshot((doc) => {
+                heuresSupCache = doc.exists ? doc.data() : {};
+                if (isStaffAuthenticated) {
+                    updateHeuresSupUtilOptionVisibility();
+                    const currentView = document.querySelector('.view.active');
+                    if (!currentView) return;
+                    if (currentView.id === 'view-mes-demandes') renderMesSoldeHeuresSup();
+                    if (currentView.id === 'view-demande' &&
+                        document.getElementById('demandeType').value === 'heures_sup_utilisation') {
+                        updateHeuresSupUtilSolde();
+                    }
+                    if (isManagerAuthenticated && currentView.id === 'view-manager') {
+                        renderHeuresSupManager();
+                    }
+                }
+            });
+
             // Initialize vacances solde and contracts if needed
             // Remove deleted employees before initializing anything
             await applyDeletedEmployees();
@@ -6819,6 +7446,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
             await initVacancesSolde();
             await initContracts();
+            await loadClosedDays();
 
             // Basculement annuel au 1er juin (report des jours non pris)
             await performAnnualRollover();
@@ -7235,6 +7863,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             populateMonthSelectors();
             updateVacancesNavVisibility();
             updateRecuperationOptionVisibility();
+            updateHeuresSupUtilOptionVisibility();
 
             // Navigate to hash view if present (e.g. #manager, #vacances)
             navigateFromHash();
@@ -7342,6 +7971,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 populateEchangeSelect();
                 updateVacancesNavVisibility();
                 updateRecuperationOptionVisibility();
+                updateHeuresSupUtilOptionVisibility();
                 // Reset demande form when user changes
                 document.getElementById('demandeType').value = '';
                 handleTypeChange();
