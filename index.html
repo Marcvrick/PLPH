@@ -1728,17 +1728,7 @@
                 <button class="nav-btn" data-view="manager">Manager</button>
             </div>
             <div class="nav-user">
-                <select id="currentUser">
-                    <option value="Stephanie">Stephanie [7]</option>
-                    <option value="Claire">Claire [4]</option>
-                    <option value="Sandrine">Sandrine [3]</option>
-                    <option value="Titia">Titia [6]</option>
-
-                    <option value="Chloe">Chloe [9]</option>
-                    <option value="Mathilde">Mathilde [5]</option>
-                    <option value="Pascal">Pascal</option>
-                    <option value="Emilie">Emilie</option>
-                </select>
+                <select id="currentUser"></select>
             </div>
         </div>
     </nav>
@@ -2121,6 +2111,10 @@
                             <input type="text" id="newEmployeeName" class="form-input" placeholder="Marie Dupont">
                         </div>
                         <div class="form-group">
+                            <label>Numéro (affiché dans le menu, ex: [7]):</label>
+                            <input type="text" id="newEmployeeNumero" class="form-input" placeholder="7">
+                        </div>
+                        <div class="form-group">
                             <label>Rôle:</label>
                             <div>
                                 <label><input type="radio" name="employeeRole" value="pharmacien"> Pharmacien</label>
@@ -2180,7 +2174,7 @@
             </div>
 
             <div class="card">
-                <h2 class="card-title">Gestion des contrats et ancienneté</h2>
+                <h2 class="card-title">Gestion/ Création des contrats et ancienneté</h2>
                 <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
                     Définissez le type de contrat, les dates de début/fin et l'ancienneté de chaque employé.
                     Les vacances sont calculees automatiquement (2.5 jours ouvrables/mois, lun-sam + 2 jours après 6 ans d'ancienneté).
@@ -2401,6 +2395,7 @@
                 }
             },
             "Stephanie": {
+                numero: "7",
                 paire: {
                     lundi: { am: "9h-12h30", pm: "14h-18h" },
                     mardi: { am: "9h-12h30", pm: "14h-18h" },
@@ -2419,6 +2414,7 @@
                 }
             },
             "Claire": {
+                numero: "4",
                 paire: {
                     lundi: { am: "9h-12h30", pm: "14h-19h" },
                     mardi: { am: "9h-12h30", pm: "14h-19h" },
@@ -2437,6 +2433,7 @@
                 }
             },
             "Sandrine": {
+                numero: "3",
                 paire: {
                     lundi: { am: "9h-12h30", pm: "14h-17h30" },
                     mardi: { am: "9h-12h30", pm: "14h-17h30" },
@@ -2455,6 +2452,7 @@
                 }
             },
             "Titia": {
+                numero: "6",
                 paire: {
                     lundi: { am: "9h-12h30", pm: "14h-19h15" },
                     mardi: { am: "9h-12h30", pm: "14h-19h15" },
@@ -2473,6 +2471,7 @@
                 }
             },
             "Chloe": {
+                numero: "9",
                 paire: {
                     lundi: { am: "9h-12h30", pm: null },
                     mardi: { am: "9h-12h30", pm: null },
@@ -2491,6 +2490,7 @@
                 }
             },
             "Mathilde": {
+                numero: "5",
                 paire: {
                     lundi: { am: "9h-12h30", pm: "14h-19h15" },
                     mardi: { am: "9h-12h30", pm: null },
@@ -5301,15 +5301,27 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         const VACANCES_EMPLOYEES = ['Stephanie', 'Claire', 'Sandrine', 'Titia', 'Emilie', 'Chloe', 'Mathilde', 'Pascal'];
         const VACANCES_ANNUEL = 30; // Max legal par an (30 jours ouvrables, lun-sam)
 
+        // Rebuild the "Se connecter en tant que" dropdown from STAFF (name + numero)
+        function populateCurrentUserSelect() {
+            const select = document.getElementById('currentUser');
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '';
+            Object.keys(STAFF).filter(name => name !== 'Laure').forEach(name => {
+                const numero = STAFF[name].numero;
+                const label = numero ? `${name} [${numero}]` : name;
+                select.innerHTML += `<option value="${name}">${label}</option>`;
+            });
+            if (current && STAFF[current]) select.value = current;
+        }
+
         // Remove a deleted employee from all in-memory lists and the HTML dropdown
         function removeDeletedEmployee(name) {
             const idx = VACANCES_EMPLOYEES.indexOf(name);
             if (idx > -1) VACANCES_EMPLOYEES.splice(idx, 1);
             delete ROLES[name];
             delete STAFF[name];
-            // Remove from dropdown
-            const option = document.querySelector(`#currentUser option[value="${name}"]`);
-            if (option) option.remove();
+            populateCurrentUserSelect();
         }
 
         // Cache of deleted employee names (used by listeners to avoid re-adding)
@@ -7459,6 +7471,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
             // Load custom schedules from Firebase
             await loadStaffSchedule();
+            populateCurrentUserSelect();
 
             // Real-time listener for staff_schedule
             db.collection('config').doc('staff_schedule').onSnapshot((doc) => {
@@ -7473,6 +7486,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                             VACANCES_EMPLOYEES.push(name);
                         }
                     });
+                    populateCurrentUserSelect();
                     // Re-render if planning view is active
                     if (isStaffAuthenticated && document.getElementById('view-planning') && document.getElementById('view-planning').classList.contains('active')) {
                         renderPlanning();
@@ -7543,6 +7557,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             selectedTemplate = null;
             currentSchedule = null;
             document.getElementById('newEmployeeName').value = '';
+            document.getElementById('newEmployeeNumero').value = '';
             document.getElementById('scheduleEditor').classList.add('hidden');
             document.getElementById('scheduleConfirmation').classList.add('hidden');
         }
@@ -7606,8 +7621,9 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             document.getElementById('scheduleTemplateSelector').classList.add('hidden');
             document.getElementById('scheduleEditor').classList.remove('hidden');
 
-            // Pre-fill name and role
+            // Pre-fill name, numero and role
             document.getElementById('newEmployeeName').value = templateName;
+            document.getElementById('newEmployeeNumero').value = STAFF[templateName].numero || '';
             const role = ROLES[templateName] || 'preparatrice';
             document.querySelector(`input[name="employeeRole"][value="${role}"]`).checked = true;
 
@@ -7691,10 +7707,16 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
         async function saveSchedule() {
             const name = document.getElementById('newEmployeeName').value.trim();
+            const numero = document.getElementById('newEmployeeNumero').value.trim() || (STAFF[editingExistingEmployee]?.numero ?? '');
             const role = document.querySelector('input[name="employeeRole"]:checked').value;
 
             if (!name) {
                 alert('Veuillez entrer le nom de l\'employée');
+                return;
+            }
+
+            if (!numero) {
+                alert('Veuillez entrer le numéro de l\'employée');
                 return;
             }
 
@@ -7705,6 +7727,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             // Prepare schedule object
             const newSchedule = {
                 role: role,
+                numero: numero,
                 paire: currentSchedule.paire,
                 impaire: currentSchedule.impaire,
                 createdAt: getNowFrance().toISOString(),
@@ -7720,7 +7743,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 allSchedules[name] = newSchedule;
                 await db.collection('config').doc('staff_schedule').set(allSchedules);
 
-                // Update ROLES
+                // Update in-memory STAFF/ROLES right away (don't wait for the realtime listener)
+                STAFF[name] = newSchedule;
                 ROLES[name] = role;
 
                 // Update VACANCES_EMPLOYEES
@@ -7746,6 +7770,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     solde[name] = { annuel: 30, pris: 0, report: 0 };
                     await saveVacancesSolde(solde);
                 }
+
+                // Refresh dropdown + salariés list now that VACANCES_EMPLOYEES/contracts include the new employee
+                populateCurrentUserSelect();
+                renderContractsManager();
 
                 // Show confirmation
                 showScheduleConfirmation(name, role);
@@ -7789,6 +7817,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             currentSchedule = null;
             editingExistingEmployee = null;
             document.getElementById('newEmployeeName').value = '';
+            document.getElementById('newEmployeeNumero').value = '';
             document.getElementById('scheduleEditor').classList.add('hidden');
             document.getElementById('scheduleConfirmation').classList.add('hidden');
 
@@ -7844,6 +7873,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             // Show editor
             document.getElementById('scheduleEditor').classList.remove('hidden');
             document.getElementById('newEmployeeName').value = '';
+            document.getElementById('newEmployeeNumero').value = '';
             document.querySelector('input[name="employeeRole"][value="preparatrice"]').checked = true;
             document.querySelector('#scheduleEditor .btn-success').textContent = '✓ Créer le planning';
 
