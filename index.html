@@ -7029,7 +7029,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         </div>
 
                         <!-- Edit Form (hidden by default) -->
-                        <div id="edit-form-${sanitize(name)}" class="contract-details hidden">
+                        <div id="edit-form-${sanitize(name)}" class="contract-details hidden" onchange="autoSaveContract('${sanitize(name)}')" oninput="autoSaveContract('${sanitize(name)}')">
                             <div class="contract-field">
                                 <label>Type de contrat</label>
                                 <select id="contract-type-${sanitize(name)}" onchange="toggleEndDateField('${sanitize(name)}')">
@@ -7064,6 +7064,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                 <label>Jours pris (depuis 1er juin)</label>
                                 <input type="number" id="contract-taken-${sanitize(name)}" value="${daysTaken}" min="0" max="30">
                             </div>
+                            <div id="autosave-${sanitize(name)}" style="font-size: 0.75rem; color: var(--green); text-align: right; height: 1rem; opacity: 0; transition: opacity 0.3s;"></div>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
                                 <button class="btn btn-success" style="flex: 1;" onclick="saveContract('${sanitize(name)}'); toggleCardEdit('${sanitize(name)}');">
                                     ✓ Enregistrer
@@ -7198,7 +7199,29 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             dateField.style.display = select.value === 'mi_temps_therapeutique' ? 'block' : 'none';
         }
 
-        async function saveContract(name) {
+        // ponytail: one debounce timer for all cards, only one form is ever open
+        let autoSaveTimer = null;
+        let autoSavePending = false;
+
+        function autoSaveContract(name) {
+            autoSavePending = true;
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(async () => {
+                try {
+                    await saveContract(name, true);
+                    const badge = document.getElementById(`autosave-${name}`);
+                    if (badge) {
+                        badge.textContent = '✓ Enregistré';
+                        badge.style.opacity = '1';
+                        setTimeout(() => { badge.style.opacity = '0'; }, 2000);
+                    }
+                } finally {
+                    autoSavePending = false;
+                }
+            }, 800);
+        }
+
+        async function saveContract(name, silent) {
             const contractType = document.getElementById(`contract-type-${name}`).value;
             const hireDate = readDateDropdowns('contract-hire', name);
             const endDate = document.getElementById(`contract-end-${name}`).value || null;
@@ -7226,6 +7249,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 solde[name].pris = daysTaken;
                 await saveVacancesSolde(solde);
             }
+
+            if (silent) return;
 
             const remaining = Math.max(0, vacCalc.total + (solde[name]?.report || 0) - daysTaken);
             alert(`Contrat de ${name} enregistré.\nDroits: ${fmtDays(vacCalc.total)}j | Pris: ${fmtDays(daysTaken)}j | Restant: ${fmtDays(remaining)}j`);
@@ -7405,7 +7430,9 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     contractsCache = doc.data();
                     if (isStaffAuthenticated && isManagerAuthenticated) {
                         const currentView = document.querySelector('.view.active');
-                        if (currentView && currentView.id === 'view-manager') {
+                        // Re-rendering would blow away whatever is being typed in an open edit form
+                        const editing = document.querySelector('.contract-details:not(.hidden)') || autoSavePending;
+                        if (currentView && currentView.id === 'view-manager' && !editing) {
                             renderContractsManager();
                             renderManagerVacancesBalance();
                         }
@@ -7736,6 +7763,13 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             };
 
             try {
+                // A name that was deleted before is filtered out on every page load — lift that
+                // tombstone, otherwise the new employee vanishes as soon as the page is reopened.
+                if (deletedEmployeesCache.includes(name)) {
+                    deletedEmployeesCache = deletedEmployeesCache.filter(n => n !== name);
+                    await db.collection('config').doc('deleted_employees').set({ list: deletedEmployeesCache });
+                }
+
                 // Save to Firebase
                 const scheduleDoc = await db.collection('config').doc('staff_schedule').get();
                 const allSchedules = scheduleDoc.exists ? scheduleDoc.data() : {};
