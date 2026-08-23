@@ -5192,7 +5192,9 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             // No longer tracking last export with Firebase
         }
 
-        // ========== AUTO-BACKUP SYSTEM ==========
+        // ========== BACKUP STATUS ==========
+        // The backup itself runs server-side (Cloud Scheduler, Saturdays 14h Paris) and writes
+        // config/backup_tracker. This only reads that document to render the status.
         let lastBackupTrackerCache = null;
 
         async function getLastBackupTracker() {
@@ -5202,67 +5204,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             } catch (e) {
                 console.error('Erreur get backup tracker:', e);
                 return null;
-            }
-        }
-
-        async function saveBackupTracker(tracker) {
-            try {
-                await db.collection('config').doc('backup_tracker').set(tracker);
-            } catch (e) {
-                console.error('Erreur save backup tracker:', e);
-            }
-        }
-
-        async function performWeeklyBackup() {
-            try {
-                const now = getNowFrance();
-                const dayOfWeek = now.getDay(); // 0=Sunday, 6=Saturday
-                const hour = now.getHours();
-
-                // Check if it's Saturday and time >= 14:00 (heure francaise)
-                if (dayOfWeek !== 6 || hour < 14) {
-                    return;
-                }
-
-                const tracker = await getLastBackupTracker() || {};
-                const today = formatLocalDate(getNowFrance()); // YYYY-MM-DD local
-
-                // Check if backup already done today
-                if (tracker.lastBackupDate === today) {
-                    return;
-                }
-
-                // Perform backup (export JSON)
-                const data = {
-                    demandes: getDemandes(),
-                    vacancesSolde: getVacancesSolde(),
-                    contracts: getContracts(),
-                    staff_schedule: STAFF,
-                    closed_days: closedDaysCache,
-                    exportDate: getNowFrance().toISOString(),
-                    backupType: 'weekly_auto'
-                };
-
-                // Create blob and download
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `planning-backup-${formatLocalDate(getNowFrance())}.json`;
-                a.click();
-
-                // Update tracker
-                const newTracker = {
-                    lastBackupDate: today,
-                    lastBackupTime: getNowFrance().toISOString(),
-                    backupCount: (tracker.backupCount || 0) + 1
-                };
-                await saveBackupTracker(newTracker);
-                lastBackupTrackerCache = newTracker;
-                updateLastBackupStatus();
-
-            } catch (e) {
-                console.error('Erreur weekly backup:', e);
             }
         }
 
@@ -7535,12 +7476,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     updateLastBackupStatus();
                 }
             });
-
-            // Perform weekly backup check
-            performWeeklyBackup();
-
-            // Check for weekly backup every 5 minutes
-            setInterval(performWeeklyBackup, 5 * 60 * 1000);
         }
 
         async function loadStaffSchedule() {
