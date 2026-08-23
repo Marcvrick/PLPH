@@ -2150,30 +2150,6 @@
             </div>
 
             <div class="card">
-                <h2 class="card-title">Fermetures exceptionnelles</h2>
-                <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
-                    Marquez les jours où la pharmacie est fermée (pont, fermeture exceptionnelle).
-                    Les heures planifiées de chaque employée ce jour-là sont automatiquement créditées sur son solde (récupérables plus tard).
-                </p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 0.75rem; align-items: end; margin-bottom: 1rem;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label">Date début</label>
-                        <input type="date" class="form-input" id="closedDayDebut">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label">Date fin</label>
-                        <input type="date" class="form-input" id="closedDayFin">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label class="form-label">Raison (optionnel)</label>
-                        <input type="text" class="form-input" id="closedDayRaison" placeholder="Ex : Pont du 1er mai">
-                    </div>
-                    <button class="btn btn-primary" onclick="handleAddClosedDay()">Ajouter</button>
-                </div>
-                <div id="closedDaysList"></div>
-            </div>
-
-            <div class="card">
                 <h2 class="card-title">Gestion/ Création des contrats et ancienneté</h2>
                 <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
                     Définissez le type de contrat, les dates de début/fin et l'ancienneté de chaque employé.
@@ -2183,7 +2159,10 @@
             </div>
 
             <div class="card">
-                <h2 class="card-title">Enregistrer un échange</h2>
+                <h2 class="card-title" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="document.getElementById('echangeContent').classList.toggle('hidden'); this.querySelector('span').textContent = document.getElementById('echangeContent').classList.contains('hidden') ? '▶' : '▼';">
+                    Enregistrer un échange <span style="font-size: 0.8rem; color: var(--gray);">▶</span>
+                </h2>
+                <div id="echangeContent" class="hidden">
                 <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
                     Enregistrer un échange de poste déjà convenu entre deux employés.
                 </p>
@@ -2218,6 +2197,31 @@
                     <input type="text" class="form-input" id="echangeMotifInput" placeholder="Ex: Echange samedi entre Claire et Sandrine">
                 </div>
                 <button class="btn btn-primary" onclick="registerExchange()" style="margin-top: 0.75rem;">Enregistrer l'échange</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Fermetures exceptionnelles</h2>
+                <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Marquez les jours où la pharmacie est fermée (pont, fermeture exceptionnelle).
+                    Les heures planifiées de chaque employée ce jour-là sont automatiquement créditées sur son solde (récupérables plus tard).
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 0.75rem; align-items: end; margin-bottom: 1rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Date début</label>
+                        <input type="date" class="form-input" id="closedDayDebut">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Date fin</label>
+                        <input type="date" class="form-input" id="closedDayFin">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Raison (optionnel)</label>
+                        <input type="text" class="form-input" id="closedDayRaison" placeholder="Ex : Pont du 1er mai">
+                    </div>
+                    <button class="btn btn-primary" onclick="handleAddClosedDay()">Ajouter</button>
+                </div>
+                <div id="closedDaysList"></div>
             </div>
 
             <div class="card">
