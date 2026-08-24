@@ -5522,10 +5522,14 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         // Le report est, par construction, ce qui reste des periodes anterieures a la periode
         // precedente : des jours acquis avant le 1er juin de l'an dernier. Rien n'est efface,
         // mais ces jours sont signales pour qu'ils soient poses avant de continuer a empiler.
-        function getReportCutoffYear() {
+        // Annee du 1er juin qui a ouvert la periode de reference en cours.
+        function getCurRefStartYear() {
             const today = getNowFrance();
-            const curRefStartYear = today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
-            return curRefStartYear - 1;
+            return today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
+        }
+
+        function getReportCutoffYear() {
+            return getCurRefStartYear() - 1;
         }
 
         // ponytail: seuil fixe a 30j = un an de droits. A passer en config si la pharmacie veut moduler.
@@ -5551,8 +5555,12 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         function getSoldeVac(name) {
             const s = getVacancesSolde()[name] || { annuel: 0, pris: 0, report: 0 };
             const contract = getContracts()[name];
-            const enCours = contract ? (calculateVacationDays(contract).enCours || 0) : 0;
-            const annuel = s.annuel || 0;
+            const vacCalc = contract ? calculateVacationDays(contract) : null;
+            const enCours = vacCalc ? (vacCalc.enCours || 0) : 0;
+            // annuel recalcule et non lu dans Firestore : la valeur stockee peut avoir une
+            // synchro de retard, et la carte affichait alors un acquis qui ne tombait pas juste
+            // avec son propre reste.
+            const annuel = vacCalc && contract.hireDate ? vacCalc.total : (s.annuel || 0);
             const report = s.report || 0;
             const pris = s.pris || 0;
             const total = parseFloat((annuel + report + enCours).toFixed(1));
@@ -5691,15 +5699,15 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     ` : ''}
                     <div class="vacances-stat">
                         <div class="vacances-stat-value">${fmtDays(d.annuel)}</div>
-                        <div class="vacances-stat-label">Acquis au 31 mai</div>
+                        <div class="vacances-stat-label">Acquis au 31 mai ${getCurRefStartYear()}</div>
                     </div>
                     <div class="vacances-stat">
                         <div class="vacances-stat-value" style="color: var(--blue);">${fmtDays(d.enCours)}</div>
-                        <div class="vacances-stat-label">Depuis le 1er juin</div>
+                        <div class="vacances-stat-label">Depuis le 1er juin ${getCurRefStartYear()}</div>
                     </div>
                     <div class="vacances-stat">
                         <div class="vacances-stat-value" style="color: var(--orange);">${fmtDays(d.pris)}</div>
-                        <div class="vacances-stat-label">Pris</div>
+                        <div class="vacances-stat-label">Pris depuis le 1er juin ${getCurRefStartYear()}</div>
                     </div>
                     <div class="vacances-stat">
                         <div class="vacances-stat-value" style="color: ${restant <= 5 ? 'var(--red)' : 'var(--green)'};">${fmtDays(restant)}</div>
@@ -5707,7 +5715,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     </div>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--gray); text-align: center; margin-bottom: 0.5rem;">
-                    ${report !== 0 ? `${fmtDays(report)}j (année préc.) + ` : ''}${fmtDays(d.annuel)}j (acquis au 31 mai) + ${fmtDays(d.enCours)}j (depuis le 1er juin) - ${fmtDays(d.pris)}j (pris) = <strong>${fmtDays(restant)}j</strong>
+                    ${report !== 0 ? `${fmtDays(report)}j (année préc.) + ` : ''}${fmtDays(d.annuel)}j (acquis au 31 mai ${getCurRefStartYear()}) + ${fmtDays(d.enCours)}j (depuis le 1er juin ${getCurRefStartYear()}) - ${fmtDays(d.pris)}j (pris depuis le 1er juin ${getCurRefStartYear()}) = <strong>${fmtDays(restant)}j</strong>
                 </div>
                 ${soldeAlertHTML(d)}
                 <div class="vacances-balance-bar">
@@ -6264,18 +6272,18 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     const since = contract.workArrangementSince ? parseLocalDate(contract.workArrangementSince).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }) : '';
                     rows.push(['Aménagement', `${workArr} depuis ${since}`]);
                 }
-                rows.push(['Période de référence', '1er juin 2025 — 31 mai 2026']);
+                rows.push(['Période de référence', `1er juin ${getCurRefStartYear() - 1} — 31 mai ${getCurRefStartYear()}`]);
                 rows.push(['Généré le', today]);
                 rows.push([]);
 
                 // Summary block
                 rows.push(['SOLDE DES CONGÉS']);
-                rows.push(['Jours acquis au 31 mai', parseFloat(fmtDays(s.annuel))]);
-                rows.push(['Acquis depuis le 1er juin', parseFloat(fmtDays(s.enCours))]);
+                rows.push([`Jours acquis au 31 mai ${getCurRefStartYear()}`, parseFloat(fmtDays(s.annuel))]);
+                rows.push([`Acquis depuis le 1er juin ${getCurRefStartYear()}`, parseFloat(fmtDays(s.enCours))]);
                 if (report > 0) rows.push([`Report acquis avant le 1er juin ${getReportCutoffYear()}`, parseFloat(fmtDays(report))]);
                 if (report < 0) rows.push(['Jours pris par anticipation', parseFloat(fmtDays(report))]);
                 rows.push(['Total disponible', parseFloat(fmtDays(total))]);
-                rows.push(['Jours pris', parseFloat(fmtDays(s.pris))]);
+                rows.push([`Jours pris depuis le 1er juin ${getCurRefStartYear()}`, parseFloat(fmtDays(s.pris))]);
                 rows.push(['JOURS RESTANTS', parseFloat(fmtDays(restant))]);
                 rows.push([]);
 
@@ -6318,10 +6326,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 const summaryRows = [];
                 summaryRows.push(['Récapitulatif congés équipe']);
                 summaryRows.push([]);
-                summaryRows.push(['Période de référence', '1er juin 2025 — 31 mai 2026']);
+                summaryRows.push(['Période de référence', `1er juin ${getCurRefStartYear() - 1} — 31 mai ${getCurRefStartYear()}`]);
                 summaryRows.push(['Généré le', today]);
                 summaryRows.push([]);
-                summaryRows.push(['Employé', 'Acquis au 31 mai', 'Depuis le 1er juin', 'Report', 'Total', 'Pris', 'Restant']);
+                summaryRows.push(['Employé', `Acquis au 31 mai ${getCurRefStartYear()}`, `Depuis le 1er juin ${getCurRefStartYear()}`, 'Report', 'Total', 'Pris', 'Restant']);
 
                 employees.forEach(name => {
                     const s = getSoldeVac(name);
@@ -6442,11 +6450,11 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         <!-- Details section (hidden by default) -->
                         <div id="details-${sanitize(name)}" class="vacances-details">
                             <div class="vacances-detail-item">
-                                <span class="vacances-detail-label">Acquis au 31 mai:</span>
+                                <span class="vacances-detail-label">Acquis au 31 mai ${getCurRefStartYear()}:</span>
                                 <span class="vacances-detail-value">${fmtDays(s.annuel)}j</span>
                             </div>
                             <div class="vacances-detail-item">
-                                <span class="vacances-detail-label">Acquis depuis le 1er juin:</span>
+                                <span class="vacances-detail-label">Acquis depuis le 1er juin ${getCurRefStartYear()}:</span>
                                 <span class="vacances-detail-value">+${fmtDays(s.enCours)}j</span>
                             </div>
                             ${report !== 0 ? `
@@ -6460,7 +6468,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                 <span class="vacances-detail-value">${fmtDays(total)}j</span>
                             </div>
                             <div class="vacances-detail-item" style="border-top: 1px solid #E5E7EB; padding-top: 0.5rem; margin-top: 0.5rem;">
-                                <span class="vacances-detail-label">Déjà pris:</span>
+                                <span class="vacances-detail-label">Pris depuis le 1er juin ${getCurRefStartYear()}:</span>
                                 <span class="vacances-detail-value">${fmtDays(s.pris)}j</span>
                             </div>
                             ${(() => {
@@ -6964,7 +6972,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 const vacCalc = calculateVacationDays(contract);
                 const alert = getContractEndAlert(contract);
                 const d = getSoldeVac(name);
-                const daysTaken = contract.daysTaken || 0;
+                const daysTaken = d.pris;
                 const remaining = d.restant;
 
                 const badgeClass = contract.contractType.toLowerCase().replace(' ', '_');
@@ -7013,11 +7021,11 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                 <div class="contract-card-section-title">🏖️ Congés:</div>
                                 <div class="contract-card-vacances">
                                     <div class="contract-card-vacances-row">
-                                        <span class="contract-card-vacances-label">Acquis au 31 mai:</span>
-                                        <span class="contract-card-vacances-value">${fmtDays(vacCalc.total)}j ${vacCalc.bonus > 0 ? `(+${vacCalc.bonus}j)` : ''}</span>
+                                        <span class="contract-card-vacances-label">Acquis au 31 mai ${getCurRefStartYear()}:</span>
+                                        <span class="contract-card-vacances-value">${fmtDays(d.annuel)}j ${vacCalc.bonus > 0 ? `(+${vacCalc.bonus}j)` : ''}</span>
                                     </div>
                                     <div class="contract-card-vacances-row">
-                                        <span class="contract-card-vacances-label">Depuis le 1er juin:</span>
+                                        <span class="contract-card-vacances-label">Depuis le 1er juin ${getCurRefStartYear()}:</span>
                                         <span class="contract-card-vacances-value">+${fmtDays(d.enCours)}j</span>
                                     </div>
                                     ${d.report !== 0 ? `
@@ -7027,8 +7035,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                     </div>
                                     ` : ''}
                                     <div class="contract-card-vacances-row">
-                                        <span class="contract-card-vacances-label">Pris:</span>
-                                        <span class="contract-card-vacances-value">${fmtDays(daysTaken)}j</span>
+                                        <span class="contract-card-vacances-label">Pris depuis le 1er juin ${getCurRefStartYear()}:</span>
+                                        <span class="contract-card-vacances-value">-${fmtDays(daysTaken)}j</span>
                                     </div>
                                     <div class="contract-card-vacances-row" style="border-top: 1px solid rgba(0,0,0,0.1); padding-top: 0.5rem; margin-top: 0.5rem;">
                                         <span class="contract-card-vacances-label"><strong>Restant:</strong></span>
