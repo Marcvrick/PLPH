@@ -1040,7 +1040,9 @@
         /* Contract Card Grid - 4 columns layout */
         .contracts-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            /* 4 par ligne max : auto-fill en empilait autant que la largeur le permettait,
+               les cartes finissaient trop etroites. Le media query 768px repasse a 3. */
+            grid-template-columns: repeat(4, 1fr);
             gap: 1.2rem;
             margin-bottom: 1rem;
         }
