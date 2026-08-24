@@ -6206,14 +6206,22 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             // Add approved vacation requests from the app
             demandesCache.forEach(d => {
                 if (d.employee !== employeeName) return;
-                if (d.statut !== 'approuve') return;
+                // Le champ est `status` avec la valeur 'approuvee' partout ailleurs dans l'app.
+                // Le filtre lisait `d.statut !== 'approuve'`, jamais vrai, donc aucune demande
+                // validee dans l'app n'apparaissait dans le detail ni dans l'export Excel.
+                if (d.status !== 'approuvee') return;
                 if (d.type !== 'conge' && d.type !== 'vacances') return;
                 // Skip if already covered by PDF data (before Apr 16, 2026)
                 if (d.dateDebut && d.dateDebut < '2026-04-16') return;
+                // joursOuvrables n'est rempli que par le module vacances. Les demandes de type
+                // conge portent leur liste `dates`, il faut la compter, sinon 14 jours passaient pour 1.
+                const jours = parseFloat(d.joursOuvrables)
+                    || (Array.isArray(d.dates) ? d.dates.filter(dt => isJourOuvrable(dt)).length : 0)
+                    || 1;
                 historique.push({
                     du: d.dateDebut || d.date,
                     au: d.dateFin || d.dateDebut || d.date,
-                    jours: d.joursOuvrables || 1,
+                    jours,
                     source: 'app'
                 });
             });
