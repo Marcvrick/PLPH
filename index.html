@@ -4689,7 +4689,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 solde[d.employee] = Math.max(0, (solde[d.employee] || 0) - (d.heures || 0));
                 await saveHeuresSup(solde);
             }
-            // Deduct vacation days if it's a vacances request — update both systems
+            // Deduct vacation days if it's a vacances request (vacances_solde.pris fait foi)
             if (d && d.type === 'vacances') {
                 const joursToDeduct = d.joursOuvrables || 0;
                 // Update vacances_solde
@@ -4697,12 +4697,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 if (solde[d.employee]) {
                     solde[d.employee].pris += joursToDeduct;
                     await saveVacancesSolde(solde);
-                }
-                // Keep contracts.daysTaken in sync
-                const contracts = getContracts();
-                if (contracts[d.employee]) {
-                    contracts[d.employee].daysTaken = (contracts[d.employee].daysTaken || 0) + joursToDeduct;
-                    await saveContracts(contracts);
                 }
             }
         }
@@ -4760,11 +4754,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     solde[d.employee].pris += joursToDeduct;
                     await saveVacancesSolde(solde);
                 }
-                const contracts = getContracts();
-                if (contracts[d.employee]) {
-                    contracts[d.employee].daysTaken = (contracts[d.employee].daysTaken || 0) + 1;
-                    await saveContracts(contracts);
-                }
             }
         }
 
@@ -4809,11 +4798,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 if (solde[d.employee]) {
                     solde[d.employee].pris += joursOuvrables;
                     await saveVacancesSolde(solde);
-                }
-                const contracts = getContracts();
-                if (contracts[d.employee]) {
-                    contracts[d.employee].daysTaken = (contracts[d.employee].daysTaken || 0) + joursOuvrables;
-                    await saveContracts(contracts);
                 }
             }
         }
@@ -6788,8 +6772,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     init[name] = {
                         contractType: 'CDI',
                         endDate: null,
-                        hireDate: '', // A renseigner
-                        daysTaken: 0
+                        hireDate: '' // A renseigner
                     };
                 });
                 await db.collection('config').doc('staff_contracts').set(init);
@@ -6968,11 +6951,11 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             let html = '';
 
             VACANCES_EMPLOYEES.forEach(name => {
-                const contract = contracts[name] || { contractType: 'CDI', endDate: null, hireDate: '', daysTaken: 0 };
+                const contract = contracts[name] || { contractType: 'CDI', endDate: null, hireDate: '' };
                 const vacCalc = calculateVacationDays(contract);
                 const alert = getContractEndAlert(contract);
                 const d = getSoldeVac(name);
-                const daysTaken = d.pris;
+                const pris = d.pris;
                 const remaining = d.restant;
 
                 const badgeClass = contract.contractType.toLowerCase().replace(' ', '_');
@@ -7036,7 +7019,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                     ` : ''}
                                     <div class="contract-card-vacances-row">
                                         <span class="contract-card-vacances-label">Pris depuis le 1er juin ${getCurRefStartYear()}:</span>
-                                        <span class="contract-card-vacances-value">-${fmtDays(daysTaken)}j</span>
+                                        <span class="contract-card-vacances-value">-${fmtDays(pris)}j</span>
                                     </div>
                                     <div class="contract-card-vacances-row" style="border-top: 1px solid rgba(0,0,0,0.1); padding-top: 0.5rem; margin-top: 0.5rem;">
                                         <span class="contract-card-vacances-label"><strong>Restant:</strong></span>
@@ -7097,7 +7080,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                             </div>
                             <div class="contract-field">
                                 <label>Jours pris (depuis 1er juin)</label>
-                                <input type="number" id="contract-taken-${sanitize(name)}" value="${daysTaken}" min="0" max="30">
+                                <input type="number" id="contract-taken-${sanitize(name)}" value="${pris}" min="0" max="30">
                             </div>
                             <div id="autosave-${sanitize(name)}" style="font-size: 0.75rem; color: var(--green); text-align: right; height: 1rem; opacity: 0; transition: opacity 0.3s;"></div>
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
@@ -7260,7 +7243,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const contractType = document.getElementById(`contract-type-${name}`).value;
             const hireDate = readDateDropdowns('contract-hire', name);
             const endDate = document.getElementById(`contract-end-${name}`).value || null;
-            const daysTaken = parseInt(document.getElementById(`contract-taken-${name}`).value) || 0;
+            // Les jours pris vivent dans vacances_solde.pris, pas dans le contrat : la copie
+            // contract.daysTaken derivait (approbations, ajustement manuel, bascule du 1er juin
+            // qui remet pris a zero sans y toucher). Un seul champ desormais.
+            const pris = parseInt(document.getElementById(`contract-taken-${name}`).value) || 0;
             const workArrangement = document.getElementById(`contract-arrangement-${name}`).value;
             const workArrangementSince = document.getElementById(`contract-arrangement-since-${name}`).value || null;
 
@@ -7269,7 +7255,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 contractType,
                 hireDate,
                 endDate: (contractType === 'CDI' || contractType === 'freelance') ? null : endDate,
-                daysTaken,
                 workArrangement: workArrangement === 'normal' ? null : workArrangement,
                 workArrangementSince: workArrangement === 'normal' ? null : workArrangementSince
             };
@@ -7281,14 +7266,14 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const solde = getVacancesSolde();
             if (solde[name]) {
                 solde[name].annuel = vacCalc.total;
-                solde[name].pris = daysTaken;
+                solde[name].pris = pris;
                 await saveVacancesSolde(solde);
             }
 
             if (silent) return;
 
             const d = getSoldeVac(name);
-            alert(`Contrat de ${name} enregistré.\nDroits au 31 mai: ${fmtDays(vacCalc.total)}j + ${fmtDays(d.enCours)}j depuis le 1er juin | Pris: ${fmtDays(daysTaken)}j | Restant: ${fmtDays(d.restant)}j`);
+            alert(`Contrat de ${name} enregistré.\nDroits au 31 mai: ${fmtDays(vacCalc.total)}j + ${fmtDays(d.enCours)}j depuis le 1er juin | Pris: ${fmtDays(pris)}j | Restant: ${fmtDays(d.restant)}j`);
         }
 
         // Synchroniser le calcul des vacances avec les contrats
@@ -7825,8 +7810,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                     contracts[name] = {
                         contractType: 'CDI',
                         hireDate: formatLocalDate(getNowFrance()),
-                        endDate: null,
-                        daysTaken: 0
+                        endDate: null
                     };
                     await saveContracts(contracts);
                 }
