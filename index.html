@@ -6961,8 +6961,9 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 const contract = contracts[name] || { contractType: 'CDI', endDate: null, hireDate: '', daysTaken: 0 };
                 const vacCalc = calculateVacationDays(contract);
                 const alert = getContractEndAlert(contract);
+                const d = getSoldeVac(name);
                 const daysTaken = contract.daysTaken || 0;
-                const remaining = Math.max(0, vacCalc.total - daysTaken);
+                const remaining = d.restant;
 
                 const badgeClass = contract.contractType.toLowerCase().replace(' ', '_');
                 const typeLabel = contract.contractType === 'CDI' ? 'CDI' :
@@ -7010,9 +7011,19 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                 <div class="contract-card-section-title">🏖️ Congés:</div>
                                 <div class="contract-card-vacances">
                                     <div class="contract-card-vacances-row">
-                                        <span class="contract-card-vacances-label">Acquis:</span>
+                                        <span class="contract-card-vacances-label">Acquis au 31 mai:</span>
                                         <span class="contract-card-vacances-value">${fmtDays(vacCalc.total)}j ${vacCalc.bonus > 0 ? `(+${vacCalc.bonus}j)` : ''}</span>
                                     </div>
+                                    <div class="contract-card-vacances-row">
+                                        <span class="contract-card-vacances-label">Depuis le 1er juin:</span>
+                                        <span class="contract-card-vacances-value">+${fmtDays(d.enCours)}j</span>
+                                    </div>
+                                    ${d.report !== 0 ? `
+                                    <div class="contract-card-vacances-row">
+                                        <span class="contract-card-vacances-label">${d.report > 0 ? `Report (avant le 1er juin ${getReportCutoffYear()}):` : 'Pris par anticipation:'}</span>
+                                        <span class="contract-card-vacances-value">${d.report > 0 ? '+' : ''}${fmtDays(d.report)}j</span>
+                                    </div>
+                                    ` : ''}
                                     <div class="contract-card-vacances-row">
                                         <span class="contract-card-vacances-label">Pris:</span>
                                         <span class="contract-card-vacances-value">${fmtDays(daysTaken)}j</span>
@@ -7022,6 +7033,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                                         <span class="contract-card-vacances-value"><strong>${fmtDays(remaining)}j</strong></span>
                                     </div>
                                 </div>
+                                ${soldeAlertHTML(d)}
                             </div>
 
                             ${alert ? `
