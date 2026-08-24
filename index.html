@@ -5513,6 +5513,50 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             return vacancesSoldeCache;
         }
 
+        // Solde unifie, seule source de verite pour l'affichage et les controles.
+        //   annuel  = droits de la periode de reference precedente (stocke dans Firestore)
+        //   enCours = jours acquis depuis le 1er juin, calcules a la volee (prise anticipee)
+        //   report  = reliquat des annees precedentes, negatif si de l'anticipation a deja ete consommee
+        // Le report est, par construction, ce qui reste des periodes anterieures a la periode
+        // precedente : des jours acquis avant le 1er juin de l'an dernier. Rien n'est efface,
+        // mais ces jours sont signales pour qu'ils soient poses avant de continuer a empiler.
+        function getReportCutoffYear() {
+            const today = getNowFrance();
+            const curRefStartYear = today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
+            return curRefStartYear - 1;
+        }
+
+        // ponytail: seuil fixe a 30j = un an de droits. A passer en config si la pharmacie veut moduler.
+        const MAX_STOCK_VACANCES = 30;
+
+        function soldeAlertHTML(d) {
+            const alerts = [];
+            if (d.report > 0) {
+                alerts.push(`<strong>${fmtDays(d.report)}j</strong> acquis avant le 1er juin ${getReportCutoffYear()}, soit plus d'un an. A poser en priorite.`);
+            }
+            if (d.report < 0) {
+                alerts.push(`<strong>${fmtDays(-d.report)}j</strong> deja pris par anticipation sur les droits en cours.`);
+            }
+            if (d.restant > MAX_STOCK_VACANCES) {
+                alerts.push(`Stock de <strong>${fmtDays(d.restant)}j</strong>, au-dela d'une annee de droits (${MAX_STOCK_VACANCES}j). Etaler les prises sur l'annee.`);
+            }
+            if (alerts.length === 0) return '';
+            return `<div style="background: #FEF3C7; border-left: 4px solid var(--orange); padding: 0.6rem 0.75rem; margin-bottom: 0.75rem; border-radius: 4px; font-size: 0.8rem; color: #92400E;">
+                ${alerts.map(a => `<div>${a}</div>`).join('')}
+            </div>`;
+        }
+
+        function getSoldeVac(name) {
+            const s = getVacancesSolde()[name] || { annuel: 0, pris: 0, report: 0 };
+            const contract = getContracts()[name];
+            const enCours = contract ? (calculateVacationDays(contract).enCours || 0) : 0;
+            const annuel = s.annuel || 0;
+            const report = s.report || 0;
+            const pris = s.pris || 0;
+            const total = parseFloat((annuel + report + enCours).toFixed(1));
+            return { annuel, report, enCours, pris, total, restant: parseFloat((total - pris).toFixed(1)) };
+        }
+
         async function saveVacancesSolde(solde) {
             try {
                 await db.collection('config').doc('vacances_solde').set(solde);
@@ -5606,8 +5650,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 const solde = getVacancesSolde();
                 const s = solde[user];
                 if (s) {
-                    const report = s.report || 0;
-                    document.getElementById('vacancesBadge').textContent = fmtDays(s.annuel + report - s.pris) + 'j';
+                    document.getElementById('vacancesBadge').textContent = fmtDays(getSoldeVac(user).restant) + 'j';
                 }
             } else {
                 btn.classList.add('hidden');
@@ -5629,26 +5672,31 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const s = solde[user];
             if (!s) return;
 
-            const report = s.report || 0;
-            const total = s.annuel + report;
-            const restant = total - s.pris;
-            const pct = total > 0 ? Math.round((s.pris / total) * 100) : 0;
+            const d = getSoldeVac(user);
+            const report = d.report;
+            const total = d.total;
+            const restant = d.restant;
+            const pct = total > 0 ? Math.round((d.pris / total) * 100) : 0;
             const fillClass = pct > 80 ? 'danger' : pct > 60 ? 'warning' : '';
 
             document.getElementById('vacancesBalance').innerHTML = `
                 <div class="vacances-stats">
-                    ${report > 0 ? `
+                    ${report !== 0 ? `
                     <div class="vacances-stat">
-                        <div class="vacances-stat-value" style="color: var(--blue);">${fmtDays(report)}</div>
+                        <div class="vacances-stat-value" style="color: var(--blue);">${report > 0 ? '+' : ''}${fmtDays(report)}</div>
                         <div class="vacances-stat-label">Report</div>
                     </div>
                     ` : ''}
                     <div class="vacances-stat">
-                        <div class="vacances-stat-value">${fmtDays(s.annuel)}</div>
-                        <div class="vacances-stat-label">Acquis</div>
+                        <div class="vacances-stat-value">${fmtDays(d.annuel)}</div>
+                        <div class="vacances-stat-label">Acquis au 31 mai</div>
                     </div>
                     <div class="vacances-stat">
-                        <div class="vacances-stat-value" style="color: var(--orange);">${fmtDays(s.pris)}</div>
+                        <div class="vacances-stat-value" style="color: var(--blue);">${fmtDays(d.enCours)}</div>
+                        <div class="vacances-stat-label">Depuis le 1er juin</div>
+                    </div>
+                    <div class="vacances-stat">
+                        <div class="vacances-stat-value" style="color: var(--orange);">${fmtDays(d.pris)}</div>
                         <div class="vacances-stat-label">Pris</div>
                     </div>
                     <div class="vacances-stat">
@@ -5656,9 +5704,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         <div class="vacances-stat-label">Restant</div>
                     </div>
                 </div>
-                ${report > 0 ? `<div style="font-size: 0.75rem; color: var(--gray); text-align: center; margin-bottom: 0.5rem;">
-                    ${fmtDays(report)}j (année préc.) + ${fmtDays(s.annuel)}j (acquis) - ${fmtDays(s.pris)}j (pris) = <strong>${fmtDays(restant)}j</strong>
-                </div>` : ''}
+                <div style="font-size: 0.75rem; color: var(--gray); text-align: center; margin-bottom: 0.5rem;">
+                    ${report !== 0 ? `${fmtDays(report)}j (année préc.) + ` : ''}${fmtDays(d.annuel)}j (acquis au 31 mai) + ${fmtDays(d.enCours)}j (depuis le 1er juin) - ${fmtDays(d.pris)}j (pris) = <strong>${fmtDays(restant)}j</strong>
+                </div>
+                ${soldeAlertHTML(d)}
                 <div class="vacances-balance-bar">
                     <div class="vacances-balance-fill ${fillClass}" style="width: ${pct}%;"></div>
                 </div>
@@ -5705,8 +5754,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             const { count, dates } = countJoursOuvrables(dateDebut, dateFin);
             const user = document.getElementById('currentUser').value;
             const solde = getVacancesSolde();
-            const report = solde[user].report || 0;
-            const restant = solde[user].annuel + report - solde[user].pris;
+            const restant = getSoldeVac(user).restant;
 
             // Count feries in range
             const allDates = getDatesBetween(dateDebut, dateFin);
@@ -5834,8 +5882,7 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             }
 
             const solde = getVacancesSolde();
-            const report = solde[user].report || 0;
-            const restant = solde[user].annuel + report - solde[user].pris;
+            const restant = getSoldeVac(user).restant;
             const projectedExtra = calculateProjectedExtraDays(user, dateDebut);
             const projectedRestant = restant + projectedExtra;
 
@@ -6192,11 +6239,11 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
             employees.forEach(name => {
                 const historique = getVacancesHistorique(name);
-                const s = solde[name] || { annuel: 0, pris: 0, report: 0 };
+                const s = getSoldeVac(name);
                 const contract = contracts[name] || {};
-                const report = s.report || 0;
-                const total = s.annuel + report;
-                const restant = total - s.pris;
+                const report = s.report;
+                const total = s.total;
+                const restant = s.restant;
                 const totalPrisHistorique = historique.reduce((sum, h) => sum + h.jours, 0);
 
                 const contractLabel = contract.contractType === 'CDD' ? 'CDD' :
@@ -6221,8 +6268,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
                 // Summary block
                 rows.push(['SOLDE DES CONGÉS']);
-                rows.push(['Jours acquis (annuel)', parseFloat(fmtDays(s.annuel))]);
-                if (report > 0) rows.push(['Report année précédente', parseFloat(fmtDays(report))]);
+                rows.push(['Jours acquis au 31 mai', parseFloat(fmtDays(s.annuel))]);
+                rows.push(['Acquis depuis le 1er juin', parseFloat(fmtDays(s.enCours))]);
+                if (report > 0) rows.push([`Report acquis avant le 1er juin ${getReportCutoffYear()}`, parseFloat(fmtDays(report))]);
+                if (report < 0) rows.push(['Jours pris par anticipation', parseFloat(fmtDays(report))]);
                 rows.push(['Total disponible', parseFloat(fmtDays(total))]);
                 rows.push(['Jours pris', parseFloat(fmtDays(s.pris))]);
                 rows.push(['JOURS RESTANTS', parseFloat(fmtDays(restant))]);
@@ -6270,16 +6319,17 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 summaryRows.push(['Période de référence', '1er juin 2025 — 31 mai 2026']);
                 summaryRows.push(['Généré le', today]);
                 summaryRows.push([]);
-                summaryRows.push(['Employé', 'Acquis', 'Report', 'Total', 'Pris', 'Restant']);
+                summaryRows.push(['Employé', 'Acquis au 31 mai', 'Depuis le 1er juin', 'Report', 'Total', 'Pris', 'Restant']);
 
                 employees.forEach(name => {
-                    const s = solde[name] || { annuel: 0, pris: 0, report: 0 };
-                    const report = s.report || 0;
-                    const total = s.annuel + report;
-                    const restant = total - s.pris;
+                    const s = getSoldeVac(name);
+                    const report = s.report;
+                    const total = s.total;
+                    const restant = s.restant;
                     summaryRows.push([
                         name,
                         parseFloat(fmtDays(s.annuel)),
+                        parseFloat(fmtDays(s.enCours)),
                         parseFloat(fmtDays(report)),
                         parseFloat(fmtDays(total)),
                         parseFloat(fmtDays(s.pris)),
@@ -6289,10 +6339,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
                 const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
                 summaryWs['!cols'] = [
-                    { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
+                    { wch: 20 }, { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
                 ];
                 if (!summaryWs['!merges']) summaryWs['!merges'] = [];
-                summaryWs['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } });
+                summaryWs['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } });
 
                 // Insert summary as first sheet
                 wb.SheetNames.unshift('Récapitulatif');
@@ -6328,10 +6378,10 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             let html = '';
 
             VACANCES_EMPLOYEES.forEach(name => {
-                const s = solde[name];
-                const report = s.report || 0;
-                const total = s.annuel + report;
-                const restant = total - s.pris;
+                const s = getSoldeVac(name);
+                const report = s.report;
+                const total = s.total;
+                const restant = s.restant;
                 const percentUsed = total > 0 ? (s.pris / total) * 100 : 0;
 
                 // Determine colors based on remaining days
@@ -6372,6 +6422,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                             </div>
                         </div>
 
+                        ${soldeAlertHTML(s)}
+
                         <!-- Action buttons -->
                         <div class="vacances-card-actions">
                             <button class="vacances-toggle-btn" onclick="toggleVacancesDetails('${sanitize(name)}')">
@@ -6388,13 +6440,17 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                         <!-- Details section (hidden by default) -->
                         <div id="details-${sanitize(name)}" class="vacances-details">
                             <div class="vacances-detail-item">
-                                <span class="vacances-detail-label">Acquis annuel:</span>
+                                <span class="vacances-detail-label">Acquis au 31 mai:</span>
                                 <span class="vacances-detail-value">${fmtDays(s.annuel)}j</span>
                             </div>
-                            ${report > 0 ? `
+                            <div class="vacances-detail-item">
+                                <span class="vacances-detail-label">Acquis depuis le 1er juin:</span>
+                                <span class="vacances-detail-value">+${fmtDays(s.enCours)}j</span>
+                            </div>
+                            ${report !== 0 ? `
                                 <div class="vacances-detail-item">
-                                    <span class="vacances-detail-label">Report:</span>
-                                    <span class="vacances-detail-value">+${fmtDays(report)}j</span>
+                                    <span class="vacances-detail-label">${report > 0 ? `Report (avant le 1er juin ${getReportCutoffYear()}):` : 'Pris par anticipation:'}</span>
+                                    <span class="vacances-detail-value">${report > 0 ? '+' : ''}${fmtDays(report)}j</span>
                                 </div>
                             ` : ''}
                             <div class="vacances-detail-item">
@@ -6752,13 +6808,16 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
             // Periode de reference PRECEDENTE (1er juin N-2 au 31 mai N-1)
             // C'est cette période qui determine les droits utilisables maintenant
+            // Fin bornee au 1er juin (exclu) et non au 31 mai : monthsDiff compte en mois pleins
+            // + fraction, et du 1er juin au 31 mai il manque un jour, ce qui rendait 29,9j au lieu
+            // de 30j pour une annee complete.
             let prevRefStart, prevRefEnd;
             if (today.getMonth() >= 5) { // Juin ou apres
                 prevRefStart = new Date(today.getFullYear() - 1, 5, 1);
-                prevRefEnd = new Date(today.getFullYear(), 4, 31);
+                prevRefEnd = new Date(today.getFullYear(), 5, 1);
             } else {
                 prevRefStart = new Date(today.getFullYear() - 2, 5, 1);
-                prevRefEnd = new Date(today.getFullYear() - 1, 4, 31);
+                prevRefEnd = new Date(today.getFullYear() - 1, 5, 1);
             }
 
             // Periode de reference actuelle (pour les nouveaux employes)
@@ -6801,12 +6860,21 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
             const total = acquiredDays + seniorityBonus;
 
+            // Acquis dans la periode EN COURS (depuis le 1er juin, ou l'embauche si plus tard).
+            // Seule l'annee comptable bascule au 1er juin, le travail lui ne s'arrete pas :
+            // ces jours sont reels (prise anticipee) et deviendront le "annuel" au prochain 1er juin.
+            const curStart = hireDate > curRefStart ? hireDate : curRefStart;
+            const curEnd = (endDate && endDate < today) ? endDate : today;
+            const enCours = curEnd > curStart
+                ? Math.min(parseFloat((monthsDiff(curStart, curEnd) * 2.5).toFixed(1)), 30)
+                : 0;
+
             details += `${acquiredDays}j`;
             if (seniorityBonus > 0) {
                 details += ` + ${seniorityBonus}j (${yearsOfService} ans ancienneté)`;
             }
 
-            return { acquired: acquiredDays, bonus: seniorityBonus, total, details, monthsWorked, yearsOfService };
+            return { acquired: acquiredDays, bonus: seniorityBonus, total, enCours, details, monthsWorked, yearsOfService };
         }
 
         function monthsDiff(startDate, endDate) {
@@ -7197,15 +7265,15 @@ Connectez-vous a l'application Planning pour traiter cette demande.
 
             if (silent) return;
 
-            const remaining = Math.max(0, vacCalc.total + (solde[name]?.report || 0) - daysTaken);
-            alert(`Contrat de ${name} enregistré.\nDroits: ${fmtDays(vacCalc.total)}j | Pris: ${fmtDays(daysTaken)}j | Restant: ${fmtDays(remaining)}j`);
+            const d = getSoldeVac(name);
+            alert(`Contrat de ${name} enregistré.\nDroits au 31 mai: ${fmtDays(vacCalc.total)}j + ${fmtDays(d.enCours)}j depuis le 1er juin | Pris: ${fmtDays(daysTaken)}j | Restant: ${fmtDays(d.restant)}j`);
         }
 
         // Synchroniser le calcul des vacances avec les contrats
         // annuel = calcul automatique (2.5j/mois ouvrable)
         // report = jours reportes des annees precedentes (ajuste manuellement)
         // pris = jours pris depuis le 1er juin (saisi dans contrats)
-        // Total disponible = annuel + report - pris
+        // Total disponible = annuel + enCours + report - pris
         // Sync only calculated accrual (annuel) from contracts.
         // Automatic annual rollover on June 1st
         // Unused days from previous year become "report", pris resets to 0
@@ -7227,9 +7295,13 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             VACANCES_EMPLOYEES.forEach(name => {
                 if (solde[name]) {
                     const report = solde[name].report || 0;
-                    const unused = solde[name].annuel + report - solde[name].pris;
-                    if (unused > 0 || solde[name].pris > 0) {
-                        solde[name].report = Math.max(0, unused);
+                    // Le solde en cours devient "annuel" tout seul (recalcule juste apres par
+                    // syncVacationsWithContracts), donc il ne rentre PAS ici. Le reliquat peut etre
+                    // negatif : les jours pris par anticipation ont deja ete consommes sur ce nouvel
+                    // annuel, les effacer les offrirait une deuxieme fois.
+                    const unused = parseFloat((solde[name].annuel + report - solde[name].pris).toFixed(1));
+                    if (unused !== 0 || solde[name].pris > 0) {
+                        solde[name].report = unused;
                         solde[name].pris = 0;
                         updated = true;
                     }
