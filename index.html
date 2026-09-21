@@ -116,14 +116,15 @@
         }
         details.card > summary.card-title::-webkit-details-marker { display: none; }
         details.card > summary.card-title::after {
-            content: '⌄';
+            content: '▶';
             margin-left: auto;
-            font-size: 1.1rem;
+            font-size: 0.8rem;
+            color: var(--gray);
             line-height: 1;
             transition: transform 0.2s;
         }
         details.card[open] > summary.card-title { margin-bottom: 1rem; }
-        details.card[open] > summary.card-title::after { transform: rotate(180deg); }
+        details.card[open] > summary.card-title::after { transform: rotate(90deg); }
 
         .card-title {
             font-size: 1.25rem;
@@ -2118,8 +2119,8 @@
                     <div id="templateSelectionView" class="hidden">
                         <h3 style="margin-bottom: 1.2rem; color: var(--teal-dark);">Choisir un modèle</h3>
                         <div class="template-grid" id="templateCards"></div>
-                        <button class="btn btn-secondary" onclick="cancelTemplateSelection()" style="margin-top: 1rem; width: 100%;">
-                            ✕ Retour
+                        <button class="btn btn-success" onclick="showBlankSchedule()" style="margin-top: 1rem; width: 100%;">
+                            ✏️ Créer un nouveau planning
                         </button>
                     </div>
                 </div>
@@ -7617,23 +7618,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             actionButtons.classList.add('hidden');
             templateSelectionView.classList.remove('hidden');
             renderTemplateCards();
-        }
-
-        function cancelTemplateSelection() {
-            const templateSelector = document.getElementById('scheduleTemplateSelector');
-            const actionButtons = templateSelector.querySelector('.schedule-actions-buttons');
-            const templateSelectionView = document.getElementById('templateSelectionView');
-
-            templateSelectionView.classList.add('hidden');
-            actionButtons.classList.remove('hidden');
-
-            // Reset
-            selectedTemplate = null;
-            currentSchedule = null;
-            document.getElementById('newEmployeeName').value = '';
-            document.getElementById('newEmployeeNumero').value = '';
-            document.getElementById('scheduleEditor').classList.add('hidden');
-            document.getElementById('scheduleConfirmation').classList.add('hidden');
         }
 
         function renderTemplateCards() {
