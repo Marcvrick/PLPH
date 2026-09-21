@@ -104,6 +104,27 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
+        .card-bordered {
+            border: 1px solid #D9DEE4;
+        }
+
+        details.card > summary.card-title {
+            cursor: pointer;
+            list-style: none;
+            margin-bottom: 0;
+            user-select: none;
+        }
+        details.card > summary.card-title::-webkit-details-marker { display: none; }
+        details.card > summary.card-title::after {
+            content: '⌄';
+            margin-left: auto;
+            font-size: 1.1rem;
+            line-height: 1;
+            transition: transform 0.2s;
+        }
+        details.card[open] > summary.card-title { margin-bottom: 1rem; }
+        details.card[open] > summary.card-title::after { transform: rotate(180deg); }
+
         .card-title {
             font-size: 1.25rem;
             font-weight: 600;
@@ -2076,7 +2097,7 @@
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card card-bordered">
                 <h2 class="card-title">Gestion des plannings</h2>
                 <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1.5rem;">
                     Créez un planning pour un nouvel employé en utilisant un modèle existant.
@@ -2151,14 +2172,14 @@
                 </div>
             </div>
 
-            <div class="card">
-                <h2 class="card-title">Gestion/ Création des contrats et ancienneté</h2>
+            <details class="card">
+                <summary class="card-title">Gestion/ Création des contrats et ancienneté</summary>
                 <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">
                     Définissez le type de contrat, les dates de début/fin et l'ancienneté de chaque employé.
                     Les vacances sont calculees automatiquement (2.5 jours ouvrables/mois, lun-sam + 2 jours après 6 ans d'ancienneté).
                 </p>
                 <div class="contracts-grid" id="contractsManager"></div>
-            </div>
+            </details>
 
             <div class="card">
                 <h2 class="card-title" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="document.getElementById('echangeContent').classList.toggle('hidden'); this.querySelector('span').textContent = document.getElementById('echangeContent').classList.contains('hidden') ? '▶' : '▼';">
