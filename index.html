@@ -7374,6 +7374,9 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             document.getElementById(`view-${viewName}`).classList.add('active');
             document.querySelector(`.nav-btn[data-view="${viewName}"]`).classList.add('active');
 
+            // The employee picker is meaningless in the manager view
+            document.querySelector('.nav-user').classList.toggle('hidden', viewName === 'manager');
+
             if (updateHash) {
                 history.replaceState(null, '', `#${viewName}`);
             }
