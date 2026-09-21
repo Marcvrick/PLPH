@@ -1372,13 +1372,6 @@
             margin: 0 auto;
         }
 
-        .schedule-actions-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
         .template-grid {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -1695,10 +1688,6 @@
             }
 
             /* Schedule management responsive */
-            .schedule-actions-buttons {
-                grid-template-columns: 1fr;
-            }
-
             .schedule-management-container {
                 max-width: 100%;
                 padding: 0;
@@ -2104,19 +2093,9 @@
                     Créez un planning pour un nouvel employé en utilisant un modèle existant.
                 </p>
 
-                <!-- Action buttons - Start state -->
                 <div id="scheduleTemplateSelector" class="schedule-management-container">
-                    <div class="schedule-actions-buttons">
-                        <button class="btn btn-primary" onclick="showTemplateSelector()" style="width: 100%;">
-                            📋 Choisir le modèle d'un planning existant
-                        </button>
-                        <button class="btn btn-secondary" onclick="showBlankSchedule()" style="width: 100%;">
-                            ✏️ Créer un nouveau planning
-                        </button>
-                    </div>
-
-                    <!-- Template selection view (hidden by default) -->
-                    <div id="templateSelectionView" class="hidden">
+                    <!-- Template selection view, always visible -->
+                    <div id="templateSelectionView">
                         <h3 style="margin-bottom: 1.2rem; color: var(--teal-dark);">Choisir un modèle</h3>
                         <div class="template-grid" id="templateCards"></div>
                         <button class="btn btn-success" onclick="showBlankSchedule()" style="margin-top: 1rem; width: 100%;">
@@ -7610,16 +7589,6 @@ Connectez-vous a l'application Planning pour traiter cette demande.
         let selectedTemplate = null;
         let currentSchedule = null;
 
-        function showTemplateSelector() {
-            const templateSelector = document.getElementById('scheduleTemplateSelector');
-            const actionButtons = templateSelector.querySelector('.schedule-actions-buttons');
-            const templateSelectionView = document.getElementById('templateSelectionView');
-
-            actionButtons.classList.add('hidden');
-            templateSelectionView.classList.remove('hidden');
-            renderTemplateCards();
-        }
-
         function renderTemplateCards() {
             const container = document.getElementById('templateCards');
             const templates = Object.keys(STAFF).filter(name => name !== 'Laure');
@@ -7885,14 +7854,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
             document.getElementById('scheduleEditor').classList.add('hidden');
             document.getElementById('scheduleConfirmation').classList.add('hidden');
 
-            // Return to initial state (action buttons)
-            const templateSelector = document.getElementById('scheduleTemplateSelector');
-            const actionButtons = templateSelector.querySelector('.schedule-actions-buttons');
-            const templateSelectionView = document.getElementById('templateSelectionView');
-
-            templateSelector.classList.remove('hidden');
-            templateSelectionView.classList.add('hidden');
-            actionButtons.classList.remove('hidden');
+            // Return to initial state (template list)
+            document.getElementById('scheduleTemplateSelector').classList.remove('hidden');
         }
 
         function closeScheduleManager() {
@@ -7926,13 +7889,8 @@ Connectez-vous a l'application Planning pour traiter cette demande.
                 }
             };
 
-            // Hide action buttons
-            const templateSelector = document.getElementById('scheduleTemplateSelector');
-            const actionButtons = templateSelector.querySelector('.schedule-actions-buttons');
-            const templateSelectionView = document.getElementById('templateSelectionView');
-
-            actionButtons.classList.add('hidden');
-            templateSelectionView.classList.add('hidden');
+            // Hide the template list
+            document.getElementById('scheduleTemplateSelector').classList.add('hidden');
 
             // Show editor
             document.getElementById('scheduleEditor').classList.remove('hidden');
